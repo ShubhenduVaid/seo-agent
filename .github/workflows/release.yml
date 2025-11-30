@@ -44,23 +44,23 @@ jobs:
           python -m pip install --upgrade build twine setuptools wheel
           python -m build
           python - <<'PY'
-import glob, zipfile, sys
-whls = glob.glob("dist/*.whl")
-if not whls:
-    print("No wheels built.")
-    sys.exit(1)
-whl = whls[0]
-with zipfile.ZipFile(whl) as zf:
-    meta_files = [n for n in zf.namelist() if n.endswith("METADATA")]
-    if not meta_files:
-        print("No METADATA file found in wheel.")
-        sys.exit(1)
-    content = zf.read(meta_files[0]).decode()
-    print("=== Wheel METADATA ===")
-    print(content)
-    if "Name: " not in content or "Version: " not in content:
-        print("Missing Name/Version in METADATA.")
-        sys.exit(1)
+            import glob, zipfile, sys
+            whls = glob.glob("dist/*.whl")
+            if not whls:
+                print("No wheels built.")
+                sys.exit(1)
+            whl = whls[0]
+            with zipfile.ZipFile(whl) as zf:
+                meta_files = [n for n in zf.namelist() if n.endswith("METADATA")]
+                if not meta_files:
+                    print("No METADATA file found in wheel.")
+                    sys.exit(1)
+                content = zf.read(meta_files[0]).decode()
+                print("=== Wheel METADATA ===")
+                print(content)
+                if "Name: " not in content or "Version: " not in content:
+                    print("Missing Name/Version in METADATA.")
+                    sys.exit(1)
 PY
           twine check dist/*
       - name: Publish to PyPI
