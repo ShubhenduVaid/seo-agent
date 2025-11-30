@@ -246,7 +246,7 @@ class SeoAuditAgent:
         blocking_scripts = [s for s in analyzer.scripts if not s.get("async") and not s.get("defer")]
         image_count = len(analyzer.images)
         missing_img_sizes = [img for img in analyzer.images if not img.get("width") or not img.get("height")]
-        link_hints = [l for l in analyzer.link_tags if l.get("rel") in {"preload", "prefetch"}]
+        link_hints = [link for link in analyzer.link_tags if link.get("rel") in {"preload", "prefetch"}]
 
         issues: List[Issue] = []
         if html_size_kb > 1600:
@@ -746,8 +746,8 @@ class SeoAuditAgent:
                 )
             )
 
-        hreflang_tags = [l for l in analyzer.link_tags if l.get("rel") == "alternate" and l.get("hreflang")]
-        if len(hreflang_tags) > 0 and not any(l.get("href") for l in hreflang_tags if l.get("hreflang") == "x-default"):
+        hreflang_tags = [link for link in analyzer.link_tags if link.get("rel") == "alternate" and link.get("hreflang")]
+        if len(hreflang_tags) > 0 and not any(link.get("href") for link in hreflang_tags if link.get("hreflang") == "x-default"):
             issues.append(
                 Issue(
                     severity="recommended",
@@ -765,7 +765,7 @@ class SeoAuditAgent:
             )
 
         relative_hreflang = [
-            l for l in hreflang_tags if l.get("href") and not urllib.parse.urlparse(l.get("href")).scheme
+            link for link in hreflang_tags if link.get("href") and not urllib.parse.urlparse(link.get("href")).scheme
         ]
         if relative_hreflang:
             issues.append(

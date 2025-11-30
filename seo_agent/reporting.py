@@ -113,7 +113,7 @@ def _render_issue_group(issues: List[Issue]) -> List[str]:
 
 def _render_markdown(context: AuditContext, goal: str, grouped: Dict[str, List[Issue]]) -> str:
     sections: List[str] = []
-    sections.append(f"# SEO Audit Report")
+    sections.append("# SEO Audit Report")
     sections.append(f"**Goal:** {goal or 'not provided'}  ")
     sections.append(f"**URL:** {context.final_url}")
     sections.append(f"**Status:** {context.status_code or 'unknown'}")
