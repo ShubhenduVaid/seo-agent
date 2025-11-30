@@ -246,6 +246,7 @@ class SeoAuditAgent:
         blocking_scripts = [s for s in analyzer.scripts if not s.get("async") and not s.get("defer")]
         image_count = len(analyzer.images)
         missing_img_sizes = [img for img in analyzer.images if not img.get("width") or not img.get("height")]
+        link_hints = [l for l in analyzer.link_tags if l.get("rel") in {"preload", "prefetch"}]
 
         issues: List[Issue] = []
         if html_size_kb > 1600:
@@ -345,6 +346,23 @@ class SeoAuditAgent:
                     ],
                     outcome="Fewer render-blocking image requests and better loading on mobile.",
                     validation="Check network waterfalls; image requests should be smaller and deferred.",
+                )
+            )
+
+        if html_size_kb > 2000 and not link_hints:
+            issues.append(
+                Issue(
+                    severity="recommended",
+                    category="performance",
+                    title="No resource hints for heavy pages",
+                    what="Large document detected but no preload/prefetch hints were found.",
+                    steps=[
+                        "Add preload for critical CSS/hero images and key fonts.",
+                        "Use preconnect for critical third-party origins.",
+                        "Remove unused hints and monitor waterfall improvements.",
+                    ],
+                    outcome="Faster start render and reduced resource discovery time.",
+                    validation="Check waterfall; preloaded assets should appear early and reduce blocking.",
                 )
             )
 

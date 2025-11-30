@@ -94,6 +94,14 @@ Run tests:
 python3 -m unittest discover -v
 ```
 
+Lint and type check (optional):
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+python3 -m ruff check .
+python3 -m mypy seo_agent
+```
+
 ### Output formats
 
 - Default `text`
