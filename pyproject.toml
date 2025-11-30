@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=61,<75", "wheel", "packaging<25"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "seo-agent"
-version = "0.1.8"
+version = "0.1.9"
 description = "Lightweight CLI that runs a technical SEO audit for a URL and outputs prioritized, actionable recommendations."
 readme = "README.md"
 requires-python = ">=3.9"
