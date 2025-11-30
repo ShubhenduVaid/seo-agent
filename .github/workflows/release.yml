@@ -39,6 +39,7 @@ jobs:
           python-version: "3.11"
       - name: Build wheel and sdist
         run: |
+          rm -rf dist/
           python -m pip install --upgrade pip
           python -m pip install build twine
           python -m build
