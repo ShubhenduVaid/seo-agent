@@ -95,6 +95,7 @@ class SeoAgentTests(unittest.TestCase):
         issues = agent._collect_issues(context)
         titles = {issue.title for issue in issues}
         self.assertTrue(any(t.startswith("Page returns 503") for t in titles))
+        self.assertTrue(all(hasattr(issue, "category") for issue in issues))
 
 
 if __name__ == "__main__":

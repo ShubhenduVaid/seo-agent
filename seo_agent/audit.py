@@ -435,6 +435,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="content",
                     title="Viewport meta tag missing",
                     what="No responsive viewport meta tag detected; pages will render poorly on mobile and hurt mobile rankings.",
                     steps=[
@@ -473,6 +474,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="security",
                     title="Site not served over HTTPS",
                     what="URL uses HTTP; insecure transport hurts rankings and user trust.",
                     steps=[
@@ -489,6 +491,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="security",
                     title="HSTS header not detected",
                     what="No Strict-Transport-Security header; browsers may allow HTTP downgrade.",
                     steps=[
@@ -510,6 +513,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="content",
                     title="Structured data is missing",
                     what="No JSON-LD structured data detected; rich results eligibility is limited.",
                     steps=[
@@ -541,6 +545,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="links",
                     title="Low internal linking on the page",
                     what="Few internal links detected; link equity and crawl flow are limited.",
                     steps=[
@@ -557,6 +562,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="links",
                     title="External links dominate over internal links",
                     what=f"{external} external links vs {internal} internal links; excessive externals can dilute link equity.",
                     steps=[
@@ -579,6 +585,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="crawl",
                     title="Canonical tag missing",
                     what="No rel='canonical' found; duplicate content signals may be unclear to search engines.",
                     steps=[
@@ -598,6 +605,7 @@ class SeoAuditAgent:
                 issues.append(
                     Issue(
                         severity="important",
+                        category="crawl",
                         title="Canonical points to a different host",
                         what=f"Canonical URL points to {parsed_canonical.netloc}, which differs from the page host {parsed_final.netloc}.",
                         steps=[
@@ -615,6 +623,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="crawl",
                     title="Meta robots nofollow set sitewide",
                     what="Meta robots contains 'nofollow'; internal links will not pass equity for this page.",
                     steps=[
@@ -640,6 +649,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="content",
                     title="Title tag missing",
                     what="No <title> found; search results will lack a meaningful headline and relevance signal.",
                     steps=[
@@ -655,6 +665,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="content",
                     title="Title length is suboptimal",
                     what=f"Title is {len(title)} characters; very short or long titles can hurt relevance and truncation.",
                     steps=[
@@ -671,6 +682,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="content",
                     title="Meta description missing",
                     what="No meta description found; search engines may pull arbitrary text, reducing CTR.",
                     steps=[
@@ -687,6 +699,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="content",
                     title="Missing H1 heading",
                     what="No H1 detected; the page lacks a clear top-level topic signal.",
                     steps=[
@@ -702,6 +715,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="content",
                     title="Multiple H1 tags detected",
                     what=f"{len(h1_tags)} H1 tags found; multiple H1s can dilute topical focus.",
                     steps=[
@@ -719,6 +733,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="content",
                     title="hreflang missing x-default",
                     what="hreflang annotations exist but no x-default link is present.",
                     steps=[
@@ -738,6 +753,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="content",
                     title="hreflang hrefs are relative",
                     what="hreflang link href values are relative; search engines expect absolute URLs.",
                     steps=[
