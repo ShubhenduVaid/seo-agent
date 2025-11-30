@@ -51,20 +51,21 @@ The report is grouped by severity:
 3. Recommended Enhancements - nice to have
 
 Each issue includes what is wrong, why it matters, step-by-step fixes, expected outcome, and how to validate.
-- Reports include HTTP status and a simple score plus top 5 priorities. JSON output includes scores.
+- Reports include HTTP status, a simple score, and top 5 priorities. JSON output includes scores.
 
 ### What it checks
 
-- Site speed signals: page weight, script count, render-blocking scripts, image sizing, lazy-loading hints (LCP/FID/CLS risk proxies)
-- Crawlability: `robots.txt` availability/content, sitemap discovery, meta robots directives
+- Site speed signals: page weight, script count, render-blocking scripts, resource hints, image sizing, lazy-loading hints (LCP/FID/CLS risk proxies)
+- Crawlability: `robots.txt` availability/content, sitemap discovery, meta robots directives, X-Robots-Tag
+- Redirects: detects when the requested URL redirects to a different host/path
 - Mobile optimization: viewport tag and lazy-loading coverage
 - Security: HTTPS presence and HSTS header hint
-- Security headers: Content-Security-Policy, Referrer-Policy, X-Content-Type-Options, Permissions-Policy, X-Robots-Tag
+- Security headers: Content-Security-Policy, Referrer-Policy, X-Content-Type-Options, Permissions-Policy
 - Response health: HTTP status reporting (4xx/5xx) for the audited URL
 - Structured data: JSON-LD detection
 - Internal linking: ratio of internal/external links, low internal link coverage
-- Duplicate control: canonical tag presence and follow directives
-- Meta and headings: title quality, description presence, H1 usage, hreflang `x-default` hint
+- Duplicate control: canonical tag presence, host consistency, follow directives
+- Meta and headings: title quality, description presence, H1 usage, hreflang `x-default` hint and absolute hrefs
 
 ### Sample output (truncated)
 
@@ -111,6 +112,7 @@ python3 -m mypy seo_agent
 - `--format json` for structured output (good for CI)
 - `--format markdown` for docs/issue comments
 - `--quiet` skips interactive prompts (useful in CI)
+- `--fail-on-critical` exits non-zero if critical issues are found (useful for CI gates)
 
 The project intentionally has no external dependencies. If you add new functionality, prefer the standard library when possible and include coverage (unit or integration tests) for new logic.
 
@@ -134,7 +136,7 @@ python3 -m build
 This produces artifacts under `dist/`. Upload to PyPI with `twine` or your preferred publisher. Update the version in `seo_agent/__init__.py` and `pyproject.toml` before tagging a release.
 
 GitHub Actions CI:
-- Pull requests and main branch: installs in editable mode and runs `python -m unittest discover -v`.
+- Pull requests and main branch: installs in editable mode and runs lint (ruff), mypy, and `python -m unittest discover -v` with coverage >= 70%.
 - Tag pushes matching `v*`: builds sdist/wheel and publishes to PyPI using OIDC (`pypa/gh-action-pypi-publish`). Configure PyPI trusted publisher for the repo before tagging.
 
 ## Contributing
