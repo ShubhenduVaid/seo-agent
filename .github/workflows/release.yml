@@ -58,10 +58,10 @@ jobs:
                 content = zf.read(meta_files[0]).decode()
                 print("=== Wheel METADATA ===")
                 print(content)
-                if "Name: " not in content or "Version: " not in content:
-                    print("Missing Name/Version in METADATA.")
-                    sys.exit(1)
-PY
+            if "Name: " not in content or "Version: " not in content:
+                print("Missing Name/Version in METADATA.")
+                sys.exit(1)
+          PY
           twine check dist/*
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@v1.8.14
