@@ -97,6 +97,64 @@ class SeoAgentTests(unittest.TestCase):
         self.assertTrue(any(t.startswith("Page returns 503") for t in titles))
         self.assertTrue(all(hasattr(issue, "category") for issue in issues))
 
+    def test_redirect_check_flags_redirect(self) -> None:
+        context = _build_context(url="https://a.com/page", final="https://b.com/page")
+        agent = SeoAuditAgent()
+        issues = agent._collect_issues(context)
+        titles = {issue.title for issue in issues}
+        self.assertIn("URL redirects to a different location", titles)
+
+    def test_header_checks_x_robots(self) -> None:
+        context = _build_context(headers={"X-Robots-Tag": "noindex, nofollow"})
+        agent = SeoAuditAgent()
+        issues = agent._collect_issues(context)
+        titles = {issue.title for issue in issues}
+        self.assertIn("X-Robots-Tag blocks indexing", titles)
+
+    def test_canonical_cross_host(self) -> None:
+        html = """
+        <html><head>
+        <link rel="canonical" href="https://other.com/page">
+        <title>Test</title>
+        </head><body><h1>Hi</h1></body></html>
+        """
+        context = _build_context(final="https://example.com/page", html=html)
+        agent = SeoAuditAgent()
+        issues = agent._collect_issues(context)
+        titles = {issue.title for issue in issues}
+        self.assertIn("Canonical points to a different host", titles)
+
+    def test_resource_hints_missing_for_heavy_page(self) -> None:
+        body = "a" * (2_050 * 1024)  # ~2MB
+        html = f"<html><head><title>Test</title></head><body>{body}</body></html>"
+        context = _build_context(html=html)
+        agent = SeoAuditAgent()
+        issues = agent._collect_issues(context)
+        titles = {issue.title for issue in issues}
+        self.assertIn("No resource hints for heavy pages", titles)
+
+
+def _build_context(
+    url: str = "https://example.com",
+    final: str = "https://example.com",
+    html: str | None = None,
+    headers: dict | None = None,
+) -> AuditContext:
+    sample_html = html or "<html><head><title>Test</title></head><body><h1>Hi</h1></body></html>"
+    analyzer = SimpleHTMLAnalyzer()
+    analyzer.feed(sample_html)
+    return AuditContext(
+        url=url,
+        final_url=final,
+        status_code=200,
+        html=sample_html,
+        headers=headers or {},
+        robots_txt=None,
+        robots_error=None,
+        sitemap_urls=[],
+        analyzer=analyzer,
+    )
+
 
 if __name__ == "__main__":
     unittest.main()
