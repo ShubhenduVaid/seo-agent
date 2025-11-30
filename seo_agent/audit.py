@@ -789,8 +789,9 @@ class SeoAuditAgent:
     def _get_meta(self, analyzer: SimpleHTMLAnalyzer, name: str) -> Optional[Dict[str, str]]:
         name_lower = name.lower()
         for meta in analyzer.meta_tags:
-            if meta.get("name", "").lower() == name_lower:
-                return meta
+            meta_name = meta.get("name")
+            if meta_name and meta_name.lower() == name_lower:
+                return {k: v or "" for k, v in meta.items()}
         return None
 
     def _get_canonical(self, analyzer: SimpleHTMLAnalyzer) -> Optional[str]:
