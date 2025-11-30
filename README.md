@@ -1,5 +1,8 @@
 # SEO Audit Agent
 
+[![CI](https://github.com/ShubhenduVaid/seo-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ShubhenduVaid/seo-agent/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-%3E%3D70%25-brightgreen)](#)
+
 Lightweight CLI that runs a technical SEO audit for a URL and outputs prioritized, actionable recommendations similar to what you would get from a senior technical SEO specialist. The tool relies only on the Python standard library-no external dependencies required.
 
 ## Quick start
