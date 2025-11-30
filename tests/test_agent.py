@@ -146,7 +146,7 @@ def _build_context(
     url: str = "https://example.com",
     final: str = "https://example.com",
     html: StrOrNone = None,
-    headers: dict | None = None,
+    headers: dict = None,
 ) -> AuditContext:
     sample_html = html or "<html><head><title>Test</title></head><body><h1>Hi</h1></body></html>"
     analyzer = SimpleHTMLAnalyzer()
