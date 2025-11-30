@@ -101,7 +101,7 @@ The project intentionally has no external dependencies. If you add new functiona
 
 Project layout (key modules):
 - `seo_agent/cli.py` - CLI argument parsing and entry point
-- `seo_agent/audit.py` - auditing logic and checks
+- `seo_agent/audit.py` - auditing logic and checks (registry-based)
 - `seo_agent/analyzer.py` - HTML parser used by audits
 - `seo_agent/network.py` - network helpers (fetching, robots, normalization)
 - `seo_agent/reporting.py` - report rendering and formatting

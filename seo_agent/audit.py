@@ -22,6 +22,16 @@ class SeoAuditAgent:
         self.user_agent = user_agent
         self.timeout = timeout
         self.output_format = output_format
+        self._checks = [
+            self._check_speed,
+            self._check_crawlability,
+            self._check_mobile,
+            self._check_https_security,
+            self._check_schema,
+            self._check_internal_links,
+            self._check_duplicate_and_canonical,
+            self._check_meta_and_headings,
+        ]
 
     def audit(self, url: str, goal: str) -> str:
         normalized_url = normalize_url(url)
@@ -54,14 +64,8 @@ class SeoAuditAgent:
 
     def _collect_issues(self, context: AuditContext) -> List[Issue]:
         issues: List[Issue] = []
-        issues.extend(self._check_speed(context))
-        issues.extend(self._check_crawlability(context))
-        issues.extend(self._check_mobile(context))
-        issues.extend(self._check_https_security(context))
-        issues.extend(self._check_schema(context))
-        issues.extend(self._check_internal_links(context))
-        issues.extend(self._check_duplicate_and_canonical(context))
-        issues.extend(self._check_meta_and_headings(context))
+        for check in self._checks:
+            issues.extend(check(context))
         return issues
 
     def _check_speed(self, context: AuditContext) -> List[Issue]:
