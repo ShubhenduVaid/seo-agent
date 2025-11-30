@@ -5,7 +5,7 @@ Lightweight CLI that runs a technical SEO audit for a URL and outputs prioritize
 ## Quick start
 
 ```bash
-python3 seo_agent.py https://example.com --goal "traffic growth"
+python3 -m seo_agent https://example.com --goal "traffic growth"
 ```
 
 - If `--goal` is omitted, the agent asks for your main objective before auditing.
@@ -29,13 +29,15 @@ python3 -m pip install --upgrade pip  # no additional packages required
 ## Usage
 
 ```bash
-python3 seo_agent.py <url> [--goal "primary objective"] [--insecure]
+python3 -m seo_agent <url> [--goal "primary objective"] [--insecure]
 ```
 
 Examples:
 
-- `python3 seo_agent.py https://example.com --goal "traffic growth"`
-- `python3 seo_agent.py https://example.com --insecure`
+- `python3 -m seo_agent https://example.com --goal "traffic growth"`
+- `python3 -m seo_agent https://example.com --insecure`
+
+For backward compatibility you can also run `python3 seo_agent.py ...` from the project root.
 
 The report is grouped by severity:
 1. Critical Issues - fix immediately (high impact)
@@ -77,10 +79,24 @@ URL audited: https://example.com
 Run the CLI locally while iterating:
 
 ```bash
-python3 seo_agent.py https://example.com --goal "traffic growth"
+python3 -m seo_agent https://example.com --goal "traffic growth"
+```
+
+Run tests:
+
+```bash
+python3 -m unittest discover -v
 ```
 
 The project intentionally has no external dependencies. If you add new functionality, prefer the standard library when possible and include coverage (unit or integration tests) for new logic.
+
+Project layout (key modules):
+- `seo_agent/cli.py` - CLI argument parsing and entry point
+- `seo_agent/audit.py` - auditing logic and checks
+- `seo_agent/analyzer.py` - HTML parser used by audits
+- `seo_agent/network.py` - network helpers (fetching, robots, normalization)
+- `seo_agent/reporting.py` - report rendering and formatting
+- `tests/` - unit tests for core utilities and checks
 
 ## Contributing
 
