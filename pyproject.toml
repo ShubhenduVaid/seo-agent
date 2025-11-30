@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "seo-agent"
-version = "0.1.7"
+version = "0.1.8"
 description = "Lightweight CLI that runs a technical SEO audit for a URL and outputs prioritized, actionable recommendations."
 readme = "README.md"
 requires-python = ">=3.9"
