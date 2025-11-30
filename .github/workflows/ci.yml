@@ -30,4 +30,6 @@ jobs:
           python -m mypy seo_agent
       - name: Tests
         run: |
-          python -m unittest discover -v
+          python -m coverage run -m unittest discover -v
+          python -m coverage report --fail-under=70
+          python -m coverage xml
