@@ -110,6 +110,10 @@ python3 -m build
 
 This produces artifacts under `dist/`. Upload to PyPI with `twine` or your preferred publisher. Update the version in `seo_agent/__init__.py` and `pyproject.toml` before tagging a release.
 
+GitHub Actions CI:
+- Pull requests and main branch: installs in editable mode and runs `python -m unittest discover -v`.
+- Tag pushes matching `v*`: builds sdist/wheel and publishes to PyPI using OIDC (`pypa/gh-action-pypi-publish`). Configure PyPI trusted publisher for the repo before tagging.
+
 ## Contributing
 
 Contributions are welcome! Please read `CONTRIBUTING.md` for filing issues, proposing features, and submitting pull requests.
