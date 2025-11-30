@@ -18,6 +18,7 @@ class Issue:
 class AuditContext:
     url: str
     final_url: str
+    status_code: int
     html: str
     headers: Dict[str, str]
     robots_txt: Optional[str]
@@ -31,6 +32,7 @@ class FetchResult:
     body: str
     final_url: str
     headers: Dict[str, str]
+    status_code: int
     error: Optional[str]
 
 

@@ -35,9 +35,10 @@ def fetch_url(
             encoding = resp.headers.get_content_charset() or "utf-8"
             body = body_bytes.decode(encoding, errors="ignore")
             headers = {k: v for k, v in resp.headers.items()}
-            return FetchResult(body=body, final_url=resp.geturl(), headers=headers, error=None)
+            status_code = getattr(resp, "status", None) or resp.getcode() or 0
+            return FetchResult(body=body, final_url=resp.geturl(), headers=headers, status_code=status_code, error=None)
     except Exception as exc:
-        return FetchResult(body="", final_url=url, headers={}, error=str(exc))
+        return FetchResult(body="", final_url=url, headers={}, status_code=0, error=str(exc))
 
 
 def load_robots_and_sitemaps(

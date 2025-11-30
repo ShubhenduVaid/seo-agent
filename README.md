@@ -54,6 +54,8 @@ Each issue includes what is wrong, why it matters, step-by-step fixes, expected 
 - Crawlability: `robots.txt` availability/content, sitemap discovery, meta robots directives
 - Mobile optimization: viewport tag and lazy-loading coverage
 - Security: HTTPS presence and HSTS header hint
+- Security headers: Content-Security-Policy, Referrer-Policy, X-Content-Type-Options, Permissions-Policy, X-Robots-Tag
+- Response health: HTTP status reporting (4xx/5xx) for the audited URL
 - Structured data: JSON-LD detection
 - Internal linking: ratio of internal/external links, low internal link coverage
 - Duplicate control: canonical tag presence and follow directives

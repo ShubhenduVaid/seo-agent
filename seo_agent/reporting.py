@@ -41,6 +41,7 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: Ou
             {
                 "goal": goal or "not provided",
                 "url": context.final_url,
+                "status_code": context.status_code,
                 "issues": {
                     "critical": [issue.__dict__ for issue in grouped["critical"]],
                     "important": [issue.__dict__ for issue in grouped["important"]],
@@ -56,6 +57,7 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: Ou
     lines: List[str] = []
     lines.append(f"Primary goal: {goal or 'not provided'}")
     lines.append(f"URL audited: {context.final_url}")
+    lines.append(f"Status: {context.status_code or 'unknown'}")
     lines.append("")
     lines.append("1. Critical Issues - fix immediately (high impact)")
     lines.extend(_render_issue_group(grouped["critical"]))
@@ -90,6 +92,7 @@ def _render_markdown(context: AuditContext, goal: str, grouped: Dict[str, List[I
     sections.append(f"# SEO Audit Report")
     sections.append(f"**Goal:** {goal or 'not provided'}  ")
     sections.append(f"**URL:** {context.final_url}")
+    sections.append(f"**Status:** {context.status_code or 'unknown'}")
     sections.append("")
 
     def block(title: str, issues: List[Issue]) -> None:

@@ -29,6 +29,7 @@ class SeoAgentTests(unittest.TestCase):
         context = AuditContext(
             url="https://example.com",
             final_url="https://example.com",
+            status_code=200,
             html=sample_html,
             headers={},
             robots_txt=None,
@@ -60,6 +61,7 @@ class SeoAgentTests(unittest.TestCase):
         context = AuditContext(
             url="https://example.com",
             final_url="https://example.com",
+            status_code=200,
             html=sample_html,
             headers={},
             robots_txt=None,
@@ -72,6 +74,26 @@ class SeoAgentTests(unittest.TestCase):
         output = render_report(context, "goal", issues, fmt="json")
         self.assertTrue(output.startswith("{"))
         self.assertIn('"critical"', output)
+
+    def test_status_check_flags_server_error(self) -> None:
+        sample_html = "<html><head><title>Test</title></head><body></body></html>"
+        analyzer = SimpleHTMLAnalyzer()
+        analyzer.feed(sample_html)
+        context = AuditContext(
+            url="https://example.com",
+            final_url="https://example.com",
+            status_code=503,
+            html=sample_html,
+            headers={},
+            robots_txt=None,
+            robots_error=None,
+            sitemap_urls=[],
+            analyzer=analyzer,
+        )
+        agent = SeoAuditAgent()
+        issues = agent._collect_issues(context)
+        titles = {issue.title for issue in issues}
+        self.assertTrue(any(t.startswith("Page returns 503") for t in titles))
 
 
 if __name__ == "__main__":
