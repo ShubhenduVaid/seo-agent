@@ -24,6 +24,7 @@ class SeoAuditAgent:
         self.output_format = output_format
         self._checks = [
             self._check_status_and_headers,
+            self._check_redirects,
             self._check_speed,
             self._check_crawlability,
             self._check_mobile,
@@ -35,16 +36,20 @@ class SeoAuditAgent:
         ]
 
     def audit(self, url: str, goal: str) -> str:
+        report, _issues = self.audit_with_details(url, goal)
+        return report
+
+    def audit_with_details(self, url: str, goal: str) -> tuple[str, List[Issue]]:
         normalized_url = normalize_url(url)
         fetch_result = fetch_url(normalized_url, verify_ssl=self.verify_ssl, timeout=self.timeout, user_agent=self.user_agent)
         if fetch_result.error:
-            return render_unreachable(normalized_url, goal, fetch_result.error)
+            return render_unreachable(normalized_url, goal, fetch_result.error), []
 
         analyzer = SimpleHTMLAnalyzer()
         try:
             analyzer.feed(fetch_result.body)
         except Exception as exc:  # pragma: no cover - defensive
-            return render_unreachable(normalized_url, goal, f"HTML parsing failed: {exc}")
+            return render_unreachable(normalized_url, goal, f"HTML parsing failed: {exc}"), []
 
         robots_result = load_robots_and_sitemaps(
             fetch_result.final_url, verify_ssl=self.verify_ssl, timeout=self.timeout, user_agent=self.user_agent
@@ -62,12 +67,34 @@ class SeoAuditAgent:
         )
 
         issues = self._collect_issues(context)
-        return render_report(context, goal, issues, fmt=self.output_format)
+        return render_report(context, goal, issues, fmt=self.output_format), issues
 
     def _collect_issues(self, context: AuditContext) -> List[Issue]:
         issues: List[Issue] = []
         for check in self._checks:
             issues.extend(check(context))
+        return issues
+
+    def _check_redirects(self, context: AuditContext) -> List[Issue]:
+        issues: List[Issue] = []
+        original = urllib.parse.urlparse(context.url)
+        final = urllib.parse.urlparse(context.final_url)
+        if (original.scheme, original.netloc, original.path) != (final.scheme, final.netloc, final.path):
+            issues.append(
+                Issue(
+                    severity="important",
+                    category="crawl",
+                    title="URL redirects to a different location",
+                    what=f"Requested URL redirected to {context.final_url}; ensure this is the intended canonical destination.",
+                    steps=[
+                        "Confirm the redirect target is the preferred canonical URL.",
+                        "Avoid long redirect chains; use a single 301 to the canonical.",
+                        "Align internal links and sitemaps to point directly to the final URL.",
+                    ],
+                    outcome="Cleaner crawl paths and consistent canonical signals.",
+                    validation="Fetch the URL and verify a single 301/308 to the canonical destination.",
+                )
+            )
         return issues
 
     def _check_status_and_headers(self, context: AuditContext) -> List[Issue]:
@@ -77,6 +104,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="status",
                     title=f"Page returns {status}",
                     what=f"The audited URL responded with HTTP {status}; the page is not serving content reliably.",
                     steps=[
@@ -92,6 +120,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="status",
                     title=f"Page returns {status}",
                     what=f"The audited URL responded with HTTP {status}; crawlers and users will see an error.",
                     steps=[
@@ -110,6 +139,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="crawl",
                     title="X-Robots-Tag blocks indexing",
                     what="Response header includes X-Robots-Tag with noindex, preventing indexing.",
                     steps=[
@@ -125,6 +155,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="crawl",
                     title="X-Robots-Tag nofollow set",
                     what="Response header includes X-Robots-Tag with nofollow; internal links will not pass equity.",
                     steps=[
@@ -141,6 +172,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="security",
                     title="Content-Security-Policy header missing",
                     what="No Content-Security-Policy header detected; increases risk of injection and mixed content.",
                     steps=[
@@ -157,6 +189,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="security",
                     title="Referrer-Policy header missing",
                     what="No Referrer-Policy header detected; referrer data may be over-shared or inconsistent.",
                     steps=[
@@ -174,6 +207,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="security",
                     title="X-Content-Type-Options missing nosniff",
                     what="X-Content-Type-Options header is missing or not set to nosniff; increases MIME sniffing risk.",
                     steps=[
@@ -190,6 +224,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="security",
                     title="Permissions-Policy header missing",
                     what="No Permissions-Policy header detected; browser features may be unnecessarily exposed.",
                     steps=[
@@ -217,6 +252,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="performance",
                     title="Page weight is heavy, likely slowing LCP",
                     what=f"HTML+inline content is ~{int(html_size_kb)} KB which is high and will slow First Byte/LCP, especially on mobile.",
                     steps=[
@@ -232,6 +268,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="performance",
                     title="Page weight could be trimmed for better Web Vitals",
                     what=f"HTML+inline content is ~{int(html_size_kb)} KB; large payloads hurt LCP/FID, especially on first hit.",
                     steps=[
@@ -248,6 +285,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="performance",
                     title="Too many render-blocking scripts",
                     what=f"{len(blocking_scripts)} scripts load without async/defer out of {script_count} total, delaying rendering and FID.",
                     steps=[
@@ -263,6 +301,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="performance",
                     title="High script count may slow interactivity",
                     what=f"{script_count} scripts detected; heavy JS increases main-thread work and hurts INP.",
                     steps=[
@@ -279,6 +318,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="performance",
                     title="Images missing intrinsic size can cause layout shift",
                     what=f"{len(missing_img_sizes)} images lack width/height, increasing CLS risk.",
                     steps=[
@@ -295,6 +335,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="recommended",
+                    category="performance",
                     title="Large image count may impact speed",
                     what=f"{image_count} images detected; many requests can slow down LCP and bandwidth-heavy pages.",
                     steps=[
@@ -319,6 +360,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="crawl",
                     title="robots.txt is unreachable",
                     what=f"robots.txt could not be fetched ({robots_error}); crawlers cannot confirm crawl rules or sitemap locations.",
                     steps=[
@@ -334,6 +376,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="crawl",
                     title="robots.txt blocks all crawling",
                     what="robots.txt contains 'Disallow: /' which prevents search engines from crawling the site.",
                     steps=[
@@ -350,6 +393,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="important",
+                    category="crawl",
                     title="XML sitemap not advertised",
                     what="No XML sitemap was found in robots.txt; without it, discovery of deep pages is slower.",
                     steps=[
@@ -367,6 +411,7 @@ class SeoAuditAgent:
             issues.append(
                 Issue(
                     severity="critical",
+                    category="crawl",
                     title="Page is marked noindex",
                     what="Meta robots tag includes 'noindex', preventing the page from appearing in search results.",
                     steps=[

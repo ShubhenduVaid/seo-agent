@@ -38,6 +38,7 @@ Examples:
 - `python3 -m seo_agent https://example.com --goal "traffic growth"`
 - `python3 -m seo_agent https://example.com --insecure`
 - `python3 -m seo_agent https://example.com --format json --quiet` (machine-readable output)
+- `python3 -m seo_agent https://example.com --fail-on-critical` (exit non-zero if critical issues found; good for CI)
 
 For backward compatibility you can also run `python3 seo_agent.py ...` from the project root.
 

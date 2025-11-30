@@ -27,6 +27,11 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         action="store_true",
         help="Quiet mode: suppresses non-essential prompts/errors; useful for CI.",
     )
+    parser.add_argument(
+        "--fail-on-critical",
+        action="store_true",
+        help="Exit with non-zero status if critical issues are found (good for CI gates).",
+    )
     return parser.parse_args(list(argv))
 
 
@@ -42,12 +47,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         goal = input("What's your main goal for this audit (traffic growth, technical fixes, migration prep)? ").strip()
 
     agent = SeoAuditAgent(verify_ssl=not args.insecure, output_format=args.format)
-    report = agent.audit(url, goal or "")
-    if args.quiet and args.format == "text":
-        # In quiet mode, still print the report but skip extra prompts already suppressed.
-        print(report)
-    else:
-        print(report)
+    report, issues = agent.audit_with_details(url, goal or "")
+    print(report)
+
+    if args.fail_on_critical and any(i.severity == "critical" for i in issues):
+        return 2
     return 0
 
 
