@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "seo-agent"
-version = "0.1.9"
+version = "0.1.10"
 description = "Lightweight CLI that runs a technical SEO audit for a URL and outputs prioritized, actionable recommendations."
 readme = "README.md"
 requires-python = ">=3.9"
-license = "MIT"
+license = { file = "LICENSE" }
 authors = [{ name = "Shubhendu Vaid" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
