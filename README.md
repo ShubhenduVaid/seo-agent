@@ -108,7 +108,7 @@ python3 -m pip install --upgrade build
 python3 -m build
 ```
 
-This produces artifacts under `dist/`. Upload to PyPI with `twine` or your preferred publisher. Update the version in `seo_agent/__init__.py` and `pyproject.toml` before tagging a release.
+This produces artifacts under `dist/`. Upload to PyPI with `twine` or your preferred publisher. Update the version in both `seo_agent/__init__.py` and `setup.cfg` before tagging a release.
 
 GitHub Actions CI:
 - Pull requests and main branch: installs in editable mode and runs `python -m unittest discover -v`.
