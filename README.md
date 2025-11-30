@@ -37,6 +37,7 @@ Examples:
 
 - `python3 -m seo_agent https://example.com --goal "traffic growth"`
 - `python3 -m seo_agent https://example.com --insecure`
+- `python3 -m seo_agent https://example.com --format json --quiet` (machine-readable output)
 
 For backward compatibility you can also run `python3 seo_agent.py ...` from the project root.
 
@@ -88,6 +89,13 @@ Run tests:
 ```bash
 python3 -m unittest discover -v
 ```
+
+### Output formats
+
+- Default `text`
+- `--format json` for structured output (good for CI)
+- `--format markdown` for docs/issue comments
+- `--quiet` skips interactive prompts (useful in CI)
 
 The project intentionally has no external dependencies. If you add new functionality, prefer the standard library when possible and include coverage (unit or integration tests) for new logic.
 

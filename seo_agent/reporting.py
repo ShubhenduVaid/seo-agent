@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 import textwrap
-from typing import Dict, List
+from typing import Dict, List, Literal, Union
 
 from .models import AuditContext, Issue
+
+OutputFormat = Literal["text", "json", "markdown"]
 
 
 def render_unreachable(url: str, goal: str, error: str) -> str:
@@ -24,7 +27,7 @@ def render_unreachable(url: str, goal: str, error: str) -> str:
     ).strip()
 
 
-def render_report(context: AuditContext, goal: str, issues: List[Issue]) -> str:
+def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: OutputFormat = "text") -> str:
     severity_order = {"critical": 0, "important": 1, "recommended": 2}
     grouped: Dict[str, List[Issue]] = {"critical": [], "important": [], "recommended": []}
     for issue in issues:
@@ -32,6 +35,23 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue]) -> str:
 
     for group in grouped.values():
         group.sort(key=lambda i: (severity_order.get(i.severity, 99), i.title))
+
+    if fmt == "json":
+        return json.dumps(
+            {
+                "goal": goal or "not provided",
+                "url": context.final_url,
+                "issues": {
+                    "critical": [issue.__dict__ for issue in grouped["critical"]],
+                    "important": [issue.__dict__ for issue in grouped["important"]],
+                    "recommended": [issue.__dict__ for issue in grouped["recommended"]],
+                },
+            },
+            indent=2,
+        )
+
+    if fmt == "markdown":
+        return _render_markdown(context, goal, grouped)
 
     lines: List[str] = []
     lines.append(f"Primary goal: {goal or 'not provided'}")
@@ -63,3 +83,33 @@ def _render_issue_group(issues: List[Issue]) -> List[str]:
         lines.append(f"  Outcome: {issue.outcome}")
         lines.append(f"  Validate: {issue.validation}")
     return lines
+
+
+def _render_markdown(context: AuditContext, goal: str, grouped: Dict[str, List[Issue]]) -> str:
+    sections: List[str] = []
+    sections.append(f"# SEO Audit Report")
+    sections.append(f"**Goal:** {goal or 'not provided'}  ")
+    sections.append(f"**URL:** {context.final_url}")
+    sections.append("")
+
+    def block(title: str, issues: List[Issue]) -> None:
+        sections.append(f"## {title}")
+        if not issues:
+            sections.append("- None detected for this category.")
+            return
+        for issue in issues:
+            sections.append(f"### {issue.title}")
+            sections.append(f"**What:** {issue.what}")
+            sections.append("")
+            sections.append("**Fix steps:**")
+            for step in issue.steps:
+                sections.append(f"- {step}")
+            sections.append("")
+            sections.append(f"**Outcome:** {issue.outcome}")
+            sections.append(f"**Validate:** {issue.validation}")
+            sections.append("")
+
+    block("1. Critical Issues – fix immediately (high impact)", grouped["critical"])
+    block("2. Important Optimizations – fix soon (medium impact)", grouped["important"])
+    block("3. Recommended Enhancements – nice to have", grouped["recommended"])
+    return "\n".join(sections)

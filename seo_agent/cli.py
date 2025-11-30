@@ -16,6 +16,17 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         action="store_true",
         help="Skip SSL certificate verification (use only if certificate errors block auditing).",
     )
+    parser.add_argument(
+        "--format",
+        choices=["text", "json", "markdown"],
+        default="text",
+        help="Output format. Defaults to text.",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Quiet mode: suppresses non-essential prompts/errors; useful for CI.",
+    )
     return parser.parse_args(list(argv))
 
 
@@ -26,10 +37,17 @@ def main(argv: Iterable[str] | None = None) -> int:
         print("A URL is required.")
         return 1
 
-    goal = args.goal or input("What's your main goal for this audit (traffic growth, technical fixes, migration prep)? ").strip()
-    agent = SeoAuditAgent(verify_ssl=not args.insecure)
-    report = agent.audit(url, goal)
-    print(report)
+    goal = args.goal
+    if not goal and not args.quiet:
+        goal = input("What's your main goal for this audit (traffic growth, technical fixes, migration prep)? ").strip()
+
+    agent = SeoAuditAgent(verify_ssl=not args.insecure, output_format=args.format)
+    report = agent.audit(url, goal or "")
+    if args.quiet and args.format == "text":
+        # In quiet mode, still print the report but skip extra prompts already suppressed.
+        print(report)
+    else:
+        print(report)
     return 0
 
 

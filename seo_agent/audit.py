@@ -11,10 +11,17 @@ from .reporting import render_report, render_unreachable
 
 
 class SeoAuditAgent:
-    def __init__(self, verify_ssl: bool = True, user_agent: str = USER_AGENT, timeout: int = DEFAULT_TIMEOUT) -> None:
+    def __init__(
+        self,
+        verify_ssl: bool = True,
+        user_agent: str = USER_AGENT,
+        timeout: int = DEFAULT_TIMEOUT,
+        output_format: str = "text",
+    ) -> None:
         self.verify_ssl = verify_ssl
         self.user_agent = user_agent
         self.timeout = timeout
+        self.output_format = output_format
 
     def audit(self, url: str, goal: str) -> str:
         normalized_url = normalize_url(url)
@@ -43,7 +50,7 @@ class SeoAuditAgent:
         )
 
         issues = self._collect_issues(context)
-        return render_report(context, goal, issues)
+        return render_report(context, goal, issues, fmt=self.output_format)
 
     def _collect_issues(self, context: AuditContext) -> List[Issue]:
         issues: List[Issue] = []

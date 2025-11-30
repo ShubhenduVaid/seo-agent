@@ -4,7 +4,7 @@ from seo_agent.analyzer import SimpleHTMLAnalyzer
 from seo_agent.audit import SeoAuditAgent
 from seo_agent.models import AuditContext
 from seo_agent.network import normalize_url
-from seo_agent.reporting import render_unreachable
+from seo_agent.reporting import render_unreachable, render_report
 
 
 class SeoAgentTests(unittest.TestCase):
@@ -52,6 +52,26 @@ class SeoAgentTests(unittest.TestCase):
         message = render_unreachable("https://example.com", "traffic", "timeout")
         self.assertIn("timeout", message)
         self.assertIn("Could not fetch https://example.com", message)
+
+    def test_render_report_json_format(self) -> None:
+        sample_html = "<html><head><title>Test</title></head><body><h1>Hi</h1></body></html>"
+        analyzer = SimpleHTMLAnalyzer()
+        analyzer.feed(sample_html)
+        context = AuditContext(
+            url="https://example.com",
+            final_url="https://example.com",
+            html=sample_html,
+            headers={},
+            robots_txt=None,
+            robots_error=None,
+            sitemap_urls=[],
+            analyzer=analyzer,
+        )
+        agent = SeoAuditAgent(output_format="json")
+        issues = agent._collect_issues(context)
+        output = render_report(context, "goal", issues, fmt="json")
+        self.assertTrue(output.startswith("{"))
+        self.assertIn('"critical"', output)
 
 
 if __name__ == "__main__":
