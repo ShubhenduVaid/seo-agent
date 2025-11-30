@@ -12,6 +12,7 @@ class Issue:
     steps: List[str]
     outcome: str
     validation: str
+    category: str = "general"
 
 
 @dataclass

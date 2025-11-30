@@ -74,6 +74,7 @@ class SeoAgentTests(unittest.TestCase):
         output = render_report(context, "goal", issues, fmt="json")
         self.assertTrue(output.startswith("{"))
         self.assertIn('"critical"', output)
+        self.assertIn('"overall"', output)
 
     def test_status_check_flags_server_error(self) -> None:
         sample_html = "<html><head><title>Test</title></head><body></body></html>"

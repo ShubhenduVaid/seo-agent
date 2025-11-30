@@ -47,6 +47,7 @@ The report is grouped by severity:
 3. Recommended Enhancements - nice to have
 
 Each issue includes what is wrong, why it matters, step-by-step fixes, expected outcome, and how to validate.
+- Reports include HTTP status and a simple score plus top 5 priorities. JSON output includes scores.
 
 ### What it checks
 

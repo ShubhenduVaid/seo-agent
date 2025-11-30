@@ -8,6 +8,17 @@ from .models import AuditContext, Issue
 
 OutputFormat = Literal["text", "json", "markdown"]
 
+SEVERITY_SCORES = {"critical": 3, "important": 2, "recommended": 1}
+CATEGORY_LABELS = {
+    "status": "Response & Availability",
+    "security": "Security & Headers",
+    "crawl": "Crawlability & Indexing",
+    "performance": "Performance",
+    "content": "Content & Meta",
+    "links": "Links & Structure",
+    "general": "General",
+}
+
 
 def render_unreachable(url: str, goal: str, error: str) -> str:
     return textwrap.dedent(
@@ -36,12 +47,17 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: Ou
     for group in grouped.values():
         group.sort(key=lambda i: (severity_order.get(i.severity, 99), i.title))
 
+    score_data = _score_issues(issues)
+    top_five = sorted(issues, key=lambda i: (-SEVERITY_SCORES.get(i.severity, 0), i.title))[:5]
+
     if fmt == "json":
         return json.dumps(
             {
                 "goal": goal or "not provided",
                 "url": context.final_url,
                 "status_code": context.status_code,
+                "score": score_data,
+                "top_five": [issue.__dict__ for issue in top_five],
                 "issues": {
                     "critical": [issue.__dict__ for issue in grouped["critical"]],
                     "important": [issue.__dict__ for issue in grouped["important"]],
@@ -58,6 +74,14 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: Ou
     lines.append(f"Primary goal: {goal or 'not provided'}")
     lines.append(f"URL audited: {context.final_url}")
     lines.append(f"Status: {context.status_code or 'unknown'}")
+    lines.append(f"Overall score: {score_data['overall']} / 100")
+    lines.append("")
+    lines.append("Top 5 priorities:")
+    if not top_five:
+        lines.append("- None detected.")
+    else:
+        for issue in top_five:
+            lines.append(f"- [{issue.severity}] {issue.title}")
     lines.append("")
     lines.append("1. Critical Issues - fix immediately (high impact)")
     lines.extend(_render_issue_group(grouped["critical"]))
@@ -112,7 +136,35 @@ def _render_markdown(context: AuditContext, goal: str, grouped: Dict[str, List[I
             sections.append(f"**Validate:** {issue.validation}")
             sections.append("")
 
+    # No category breakdown yet; keep severity buckets for markdown.
     block("1. Critical Issues – fix immediately (high impact)", grouped["critical"])
     block("2. Important Optimizations – fix soon (medium impact)", grouped["important"])
     block("3. Recommended Enhancements – nice to have", grouped["recommended"])
     return "\n".join(sections)
+
+
+def _score_issues(issues: List[Issue]) -> Dict[str, Union[int, Dict[str, int]]]:
+    per_cat: Dict[str, int] = {}
+    total = 0
+    max_total = 0
+    for issue in issues:
+        sev_score = SEVERITY_SCORES.get(issue.severity, 0)
+        cat = issue.category or "general"
+        per_cat[cat] = per_cat.get(cat, 0) + sev_score
+        total += sev_score
+        max_total += 3  # assume each issue could be critical max weight
+
+    # Normalize to 100
+    overall = int((total / max_total) * 100) if max_total else 100
+    # Clip to bounds
+    overall = max(0, min(100, overall))
+
+    per_cat_normalized: Dict[str, int] = {}
+    for cat, score in per_cat.items():
+        possible = 3 * sum(1 for i in issues if (i.category or "general") == cat)
+        per_cat_normalized[cat] = int((score / possible) * 100) if possible else 100
+
+    return {
+        "overall": overall,
+        "by_category": {CATEGORY_LABELS.get(k, k): v for k, v in per_cat_normalized.items()},
+    }
