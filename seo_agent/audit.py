@@ -7,7 +7,7 @@ from .analyzer import SimpleHTMLAnalyzer
 from .constants import DEFAULT_TIMEOUT, USER_AGENT
 from .models import AuditContext, Issue
 from .network import fetch_url, load_robots_and_sitemaps, normalize_url
-from .reporting import render_report, render_unreachable
+from .reporting import OutputFormat, render_report, render_unreachable
 
 
 class SeoAuditAgent:
@@ -16,7 +16,7 @@ class SeoAuditAgent:
         verify_ssl: bool = True,
         user_agent: str = USER_AGENT,
         timeout: int = DEFAULT_TIMEOUT,
-        output_format: str = "text",
+        output_format: OutputFormat = "text",
     ) -> None:
         self.verify_ssl = verify_ssl
         self.user_agent = user_agent

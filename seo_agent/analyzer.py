@@ -14,11 +14,11 @@ class SimpleHTMLAnalyzer(HTMLParser):
         self.current_heading_tag: Optional[str] = None
         self.current_heading_parts: List[str] = []
         self.headings: List[Tuple[str, str]] = []
-        self.meta_tags: List[Dict[str, str]] = []
-        self.link_tags: List[Dict[str, str]] = []
+        self.meta_tags: List[Dict[str, Optional[str]]] = []
+        self.link_tags: List[Dict[str, Optional[str]]] = []
         self.links: List[str] = []
-        self.scripts: List[Dict[str, str]] = []
-        self.images: List[Dict[str, str]] = []
+        self.scripts: List[Dict[str, Optional[str]]] = []
+        self.images: List[Dict[str, Optional[str]]] = []
         self.ld_json_blocks: List[str] = []
         self.in_ld_json = False
         self.ld_json_parts: List[str] = []
