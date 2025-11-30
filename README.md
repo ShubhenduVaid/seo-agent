@@ -24,6 +24,7 @@ cd seo-agent
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip  # no additional packages required
+python3 -m pip install -e .
 ```
 
 ## Usage
@@ -97,6 +98,17 @@ Project layout (key modules):
 - `seo_agent/network.py` - network helpers (fetching, robots, normalization)
 - `seo_agent/reporting.py` - report rendering and formatting
 - `tests/` - unit tests for core utilities and checks
+
+## Packaging and release
+
+Build a wheel/sdist locally (requires `build` if not already installed):
+
+```bash
+python3 -m pip install --upgrade build
+python3 -m build
+```
+
+This produces artifacts under `dist/`. Upload to PyPI with `twine` or your preferred publisher. Update the version in `seo_agent/__init__.py` and `pyproject.toml` before tagging a release.
 
 ## Contributing
 
