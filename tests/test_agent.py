@@ -1,4 +1,12 @@
+import sys
 import unittest
+
+if sys.version_info >= (3, 10):
+    StrOrNone = str | None
+else:
+    from typing import Optional
+
+    StrOrNone = Optional[str]
 
 from seo_agent.analyzer import SimpleHTMLAnalyzer
 from seo_agent.audit import SeoAuditAgent
@@ -137,7 +145,7 @@ class SeoAgentTests(unittest.TestCase):
 def _build_context(
     url: str = "https://example.com",
     final: str = "https://example.com",
-    html: str | None = None,
+    html: StrOrNone = None,
     headers: dict | None = None,
 ) -> AuditContext:
     sample_html = html or "<html><head><title>Test</title></head><body><h1>Hi</h1></body></html>"
