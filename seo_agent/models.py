@@ -16,6 +16,7 @@ class Issue:
     outcome: str
     validation: str
     category: str = "general"
+    page: str = ""
 
 
 @dataclass
@@ -29,6 +30,8 @@ class AuditContext:
     robots_error: Optional[str]
     sitemap_urls: List[str]
     analyzer: "SimpleHTMLAnalyzer"
+    fetch_duration_ms: int = 0
+    content_size: int = 0
 
 
 @dataclass
@@ -38,6 +41,16 @@ class FetchResult:
     headers: Dict[str, str]
     status_code: int
     error: Optional[str]
+    duration_ms: int = 0
+    content_size: int = 0
+
+
+@dataclass
+class HeadResult:
+    headers: Dict[str, str]
+    status_code: int
+    error: Optional[str]
+    duration_ms: int = 0
 
 
 @dataclass

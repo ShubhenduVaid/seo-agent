@@ -42,6 +42,10 @@ Examples:
 - `python3 -m seo_agent https://example.com --insecure`
 - `python3 -m seo_agent https://example.com --format json --quiet` (machine-readable output)
 - `python3 -m seo_agent https://example.com --fail-on-critical` (exit non-zero if critical issues found; good for CI)
+- `python3 -m seo_agent https://example.com --crawl-depth 1 --crawl-limit 5` (sample a handful of internal pages)
+- `python3 -m seo_agent https://example.com --crawl-sitemaps --crawl-limit 8` (seed crawl from sitemaps)
+- `python3 -m seo_agent https://example.com --crawl-depth 1 --crawl-delay 0.5` (polite crawl with delay; honors robots.txt crawl-delay)
+- `python3 -m seo_agent https://example.com --report /tmp/report.txt` (also write the report to a file)
 
 For backward compatibility you can also run `python3 seo_agent.py ...` from the project root.
 
@@ -52,20 +56,25 @@ The report is grouped by severity:
 
 Each issue includes what is wrong, why it matters, step-by-step fixes, expected outcome, and how to validate.
 - Reports include HTTP status, a simple score, and top 5 priorities. JSON output includes scores.
+- Response time and document size are included for quick Web Vitals triage.
+- Goal-aware scoring slightly boosts performance/content/linking issues when goals mention traffic/growth.
+- Crawl summary highlights duplicate titles/descriptions across sampled pages.
 
 ### What it checks
 
 - Site speed signals: page weight, script count, render-blocking scripts, resource hints, image sizing, lazy-loading hints (LCP/FID/CLS risk proxies)
+- Static asset hygiene: cache-control and compression hints for sampled JS/CSS via HEAD requests
 - Crawlability: `robots.txt` availability/content, sitemap discovery, meta robots directives, X-Robots-Tag
+- Polite crawling: optional limited crawl that honors robots.txt disallow/crawl-delay and rate limits requests
 - Redirects: detects when the requested URL redirects to a different host/path
 - Mobile optimization: viewport tag and lazy-loading coverage
 - Security: HTTPS presence and HSTS header hint
-- Security headers: Content-Security-Policy, Referrer-Policy, X-Content-Type-Options, Permissions-Policy
+- Security headers: Content-Security-Policy, Referrer-Policy, X-Content-Type-Options, Permissions-Policy, X-Frame-Options
 - Response health: HTTP status reporting (4xx/5xx) for the audited URL
 - Structured data: JSON-LD detection
 - Internal linking: ratio of internal/external links, low internal link coverage
 - Duplicate control: canonical tag presence, host consistency, follow directives
-- Meta and headings: title quality, description presence, H1 usage, hreflang `x-default` hint and absolute hrefs
+- Meta and headings: title quality, description presence and length, social meta completeness, H1 usage, hreflang `x-default` hint and absolute hrefs, image alt coverage
 
 ### Sample output (truncated)
 
@@ -111,6 +120,7 @@ python3 -m mypy seo_agent
 - Default `text`
 - `--format json` for structured output (good for CI)
 - `--format markdown` for docs/issue comments
+- `--report <path>` to write the rendered output to a file
 - `--quiet` skips interactive prompts (useful in CI)
 - `--fail-on-critical` exits non-zero if critical issues are found (useful for CI gates)
 
