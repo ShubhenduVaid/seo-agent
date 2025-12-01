@@ -4,11 +4,11 @@ import json
 import time
 import urllib.parse
 from collections import deque
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypedDict
 
 from .analyzer import SimpleHTMLAnalyzer
 from .constants import DEFAULT_TIMEOUT, USER_AGENT
-from .models import AuditContext, Issue
+from .models import AuditContext, FetchResult, HeadResult, Issue, RobotsResult
 from .network import (
     fetch_url,
     head_request,
@@ -19,6 +19,12 @@ from .network import (
 from .reporting import OutputFormat, render_report, render_unreachable
 
 
+class RobotsRules(TypedDict):
+    disallow: List[str]
+    allow: List[str]
+    crawl_delay: Optional[float]
+
+
 class SeoAuditAgent:
     def __init__(
         self,
@@ -26,9 +32,9 @@ class SeoAuditAgent:
         user_agent: str = USER_AGENT,
         timeout: int = DEFAULT_TIMEOUT,
         output_format: OutputFormat = "text",
-        fetch_func: Callable[..., object] = fetch_url,
-        head_func: Callable[..., object] = head_request,
-        robots_loader: Callable[..., object] = load_robots_and_sitemaps,
+        fetch_func: Callable[..., FetchResult] = fetch_url,
+        head_func: Callable[..., HeadResult] = head_request,
+        robots_loader: Callable[..., RobotsResult] = load_robots_and_sitemaps,
         crawl_delay: float = 0.3,
     ) -> None:
         self.verify_ssl = verify_ssl
@@ -127,11 +133,11 @@ class SeoAuditAgent:
     def _crawl_sample(
         self,
         base_context: AuditContext,
-        robots_result,
+        robots_result: RobotsResult,
         depth: int,
         limit: int,
         include_sitemaps: bool,
-        robots_rules: Dict[str, object],
+        robots_rules: RobotsRules,
     ) -> List[AuditContext]:
         if depth <= 0 or limit <= 0:
             return []
@@ -146,7 +152,8 @@ class SeoAuditAgent:
         queue = deque((url, 1) for url in seeds)
         seen = {base_context.final_url}
         contexts: List[AuditContext] = []
-        min_delay = max(self.crawl_delay, float(robots_rules.get("crawl_delay") or 0))
+        crawl_delay_val = robots_rules.get("crawl_delay")
+        min_delay = max(self.crawl_delay, crawl_delay_val if crawl_delay_val is not None else 0.0)
 
         while queue and len(contexts) < limit:
             url, current_depth = queue.popleft()
@@ -206,8 +213,8 @@ class SeoAuditAgent:
                 collected.append(normalized)
         return collected
 
-    def _parse_robots(self, robots_content: Optional[str]) -> Dict[str, object]:
-        rules: Dict[str, object] = {"disallow": [], "allow": [], "crawl_delay": None}
+    def _parse_robots(self, robots_content: Optional[str]) -> RobotsRules:
+        rules: RobotsRules = {"disallow": [], "allow": [], "crawl_delay": None}
         if not robots_content:
             return rules
         active = False
@@ -235,10 +242,10 @@ class SeoAuditAgent:
                     continue
         return rules
 
-    def _is_allowed(self, url: str, rules: Dict[str, object]) -> bool:
+    def _is_allowed(self, url: str, rules: RobotsRules) -> bool:
         path = urllib.parse.urlparse(url).path or "/"
-        allows: List[str] = rules.get("allow", [])  # type: ignore[assignment]
-        disallows: List[str] = rules.get("disallow", [])  # type: ignore[assignment]
+        allows: List[str] = rules.get("allow", [])
+        disallows: List[str] = rules.get("disallow", [])
         for allow in allows:
             if path.startswith(allow):
                 return True

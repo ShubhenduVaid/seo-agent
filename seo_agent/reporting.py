@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import textwrap
-from typing import Dict, List, Literal, Union
+from typing import Any, Dict, List, Literal, Union, cast
 
 from .models import AuditContext, Issue
 
@@ -43,7 +43,7 @@ def render_report(
     goal: str,
     issues: List[Issue],
     fmt: OutputFormat = "text",
-    crawl_summary: Dict[str, object] | None = None,
+    crawl_summary: Dict[str, Any] | None = None,
 ) -> str:
     severity_order = {"critical": 0, "important": 1, "recommended": 2}
     grouped: Dict[str, List[Issue]] = {"critical": [], "important": [], "recommended": []}
@@ -130,7 +130,7 @@ def _render_issue_group(issues: List[Issue]) -> List[str]:
 
 
 def _render_markdown(
-    context: AuditContext, goal: str, grouped: Dict[str, List[Issue]], crawl_summary: Dict[str, object] | None
+    context: AuditContext, goal: str, grouped: Dict[str, List[Issue]], crawl_summary: Dict[str, Any] | None
 ) -> str:
     sections: List[str] = []
     sections.append("# SEO Audit Report")
@@ -174,12 +174,12 @@ def _render_markdown(
     return "\n".join(sections)
 
 
-def _render_crawl_summary_text(summary: Dict[str, object]) -> List[str]:
+def _render_crawl_summary_text(summary: Dict[str, Any]) -> List[str]:
     lines: List[str] = []
-    pages = summary.get("pages_crawled", 0)
+    pages = int(summary.get("pages_crawled", 0))
     lines.append(f"- Sampled {pages} additional page(s)")
-    dup_titles = summary.get("duplicate_titles") or []
-    dup_desc = summary.get("duplicate_descriptions") or []
+    dup_titles = cast(List[Dict[str, Any]], summary.get("duplicate_titles") or [])
+    dup_desc = cast(List[Dict[str, Any]], summary.get("duplicate_descriptions") or [])
     if not dup_titles and not dup_desc:
         lines.append("- No duplicate titles or descriptions detected in the sample.")
         return lines
@@ -196,12 +196,12 @@ def _render_crawl_summary_text(summary: Dict[str, object]) -> List[str]:
     return lines
 
 
-def _render_crawl_summary_markdown(summary: Dict[str, object]) -> List[str]:
+def _render_crawl_summary_markdown(summary: Dict[str, Any]) -> List[str]:
     lines: List[str] = []
-    pages = summary.get("pages_crawled", 0)
+    pages = int(summary.get("pages_crawled", 0))
     lines.append(f"- Sampled {pages} additional page(s)")
-    dup_titles = summary.get("duplicate_titles") or []
-    dup_desc = summary.get("duplicate_descriptions") or []
+    dup_titles = cast(List[Dict[str, Any]], summary.get("duplicate_titles") or [])
+    dup_desc = cast(List[Dict[str, Any]], summary.get("duplicate_descriptions") or [])
     if not dup_titles and not dup_desc:
         lines.append("- No duplicate titles or descriptions detected in the sample.")
         return lines
@@ -221,16 +221,16 @@ def _render_crawl_summary_markdown(summary: Dict[str, object]) -> List[str]:
 
 
 def _score_issues(issues: List[Issue], goal: str) -> Dict[str, Union[int, Dict[str, int]]]:
-    per_cat: Dict[str, int] = {}
-    total = 0
-    max_total = 0
+    per_cat: Dict[str, float] = {}
+    total: float = 0.0
+    max_total: float = 0.0
     weights = _goal_weights(goal)
     for issue in issues:
         sev_score = SEVERITY_SCORES.get(issue.severity, 0)
         cat = issue.category or "general"
         weight = weights.get(cat, 1.0)
         weighted = sev_score * weight
-        per_cat[cat] = per_cat.get(cat, 0) + int(weighted * 1000)  # scaled to reduce float drift
+        per_cat[cat] = per_cat.get(cat, 0.0) + weighted * 1000  # scaled to reduce float drift
         total += weighted
         max_total += 3 * weight  # assume each issue could be critical max weight
 
