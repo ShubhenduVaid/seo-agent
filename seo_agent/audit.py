@@ -4,7 +4,7 @@ import json
 import time
 import urllib.parse
 from collections import deque
-from typing import Any, Callable, Dict, List, Optional, TypedDict
+from typing import Callable, Dict, List, Optional, TypedDict
 
 from .analyzer import SimpleHTMLAnalyzer
 from .constants import DEFAULT_TIMEOUT, USER_AGENT
