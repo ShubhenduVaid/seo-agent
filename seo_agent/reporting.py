@@ -38,7 +38,13 @@ def render_unreachable(url: str, goal: str, error: str) -> str:
     ).strip()
 
 
-def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: OutputFormat = "text") -> str:
+def render_report(
+    context: AuditContext,
+    goal: str,
+    issues: List[Issue],
+    fmt: OutputFormat = "text",
+    crawl_summary: Dict[str, object] | None = None,
+) -> str:
     severity_order = {"critical": 0, "important": 1, "recommended": 2}
     grouped: Dict[str, List[Issue]] = {"critical": [], "important": [], "recommended": []}
     for issue in issues:
@@ -47,8 +53,8 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: Ou
     for group in grouped.values():
         group.sort(key=lambda i: (severity_order.get(i.severity, 99), i.title))
 
-    score_data = _score_issues(issues)
-    top_five = sorted(issues, key=lambda i: (-SEVERITY_SCORES.get(i.severity, 0), i.title))[:5]
+    score_data = _score_issues(issues, goal)
+    top_five = sorted(issues, key=lambda i: (-_weighted_severity(i, goal), i.title))[:5]
 
     if fmt == "json":
         return json.dumps(
@@ -56,6 +62,8 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: Ou
                 "goal": goal or "not provided",
                 "url": context.final_url,
                 "status_code": context.status_code,
+                "response_time_ms": context.fetch_duration_ms,
+                "document_size_bytes": context.content_size,
                 "score": score_data,
                 "top_five": [issue.__dict__ for issue in top_five],
                 "issues": {
@@ -63,17 +71,22 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: Ou
                     "important": [issue.__dict__ for issue in grouped["important"]],
                     "recommended": [issue.__dict__ for issue in grouped["recommended"]],
                 },
+                "crawl_summary": crawl_summary or {},
             },
             indent=2,
         )
 
     if fmt == "markdown":
-        return _render_markdown(context, goal, grouped)
+        return _render_markdown(context, goal, grouped, crawl_summary)
 
     lines: List[str] = []
     lines.append(f"Primary goal: {goal or 'not provided'}")
     lines.append(f"URL audited: {context.final_url}")
     lines.append(f"Status: {context.status_code or 'unknown'}")
+    if context.fetch_duration_ms:
+        lines.append(f"Response time: {context.fetch_duration_ms} ms")
+    if context.content_size:
+        lines.append(f"Document size: {int(context.content_size/1024)} KB")
     lines.append(f"Overall score: {score_data['overall']} / 100")
     lines.append("")
     lines.append("Top 5 priorities:")
@@ -83,6 +96,10 @@ def render_report(context: AuditContext, goal: str, issues: List[Issue], fmt: Ou
         for issue in top_five:
             lines.append(f"- [{issue.severity}] {issue.title}")
     lines.append("")
+    if crawl_summary:
+        lines.append("Crawl summary")
+        lines.extend(_render_crawl_summary_text(crawl_summary))
+        lines.append("")
     lines.append("1. Critical Issues - fix immediately (high impact)")
     lines.extend(_render_issue_group(grouped["critical"]))
     lines.append("")
@@ -101,7 +118,8 @@ def _render_issue_group(issues: List[Issue]) -> List[str]:
 
     lines: List[str] = []
     for issue in issues:
-        lines.append(f"- {issue.title}")
+        page_suffix = f" (page: {issue.page})" if getattr(issue, "page", "") else ""
+        lines.append(f"- {issue.title}{page_suffix}")
         lines.append(f"  What: {issue.what}")
         lines.append("  Fix steps:")
         for step in issue.steps:
@@ -111,12 +129,18 @@ def _render_issue_group(issues: List[Issue]) -> List[str]:
     return lines
 
 
-def _render_markdown(context: AuditContext, goal: str, grouped: Dict[str, List[Issue]]) -> str:
+def _render_markdown(
+    context: AuditContext, goal: str, grouped: Dict[str, List[Issue]], crawl_summary: Dict[str, object] | None
+) -> str:
     sections: List[str] = []
     sections.append("# SEO Audit Report")
     sections.append(f"**Goal:** {goal or 'not provided'}  ")
     sections.append(f"**URL:** {context.final_url}")
     sections.append(f"**Status:** {context.status_code or 'unknown'}")
+    if context.fetch_duration_ms:
+        sections.append(f"**Response time:** {context.fetch_duration_ms} ms")
+    if context.content_size:
+        sections.append(f"**Document size:** {int(context.content_size/1024)} KB")
     sections.append("")
 
     def block(title: str, issues: List[Issue]) -> None:
@@ -126,6 +150,8 @@ def _render_markdown(context: AuditContext, goal: str, grouped: Dict[str, List[I
             return
         for issue in issues:
             sections.append(f"### {issue.title}")
+            if getattr(issue, "page", ""):
+                sections.append(f"**Page:** {issue.page}")
             sections.append(f"**What:** {issue.what}")
             sections.append("")
             sections.append("**Fix steps:**")
@@ -137,22 +163,76 @@ def _render_markdown(context: AuditContext, goal: str, grouped: Dict[str, List[I
             sections.append("")
 
     # No category breakdown yet; keep severity buckets for markdown.
+    if crawl_summary:
+        sections.append("## Crawl summary")
+        sections.extend(_render_crawl_summary_markdown(crawl_summary))
+        sections.append("")
+
     block("1. Critical Issues – fix immediately (high impact)", grouped["critical"])
     block("2. Important Optimizations – fix soon (medium impact)", grouped["important"])
     block("3. Recommended Enhancements – nice to have", grouped["recommended"])
     return "\n".join(sections)
 
 
-def _score_issues(issues: List[Issue]) -> Dict[str, Union[int, Dict[str, int]]]:
+def _render_crawl_summary_text(summary: Dict[str, object]) -> List[str]:
+    lines: List[str] = []
+    pages = summary.get("pages_crawled", 0)
+    lines.append(f"- Sampled {pages} additional page(s)")
+    dup_titles = summary.get("duplicate_titles") or []
+    dup_desc = summary.get("duplicate_descriptions") or []
+    if not dup_titles and not dup_desc:
+        lines.append("- No duplicate titles or descriptions detected in the sample.")
+        return lines
+    if dup_titles:
+        for item in dup_titles:
+            pages_list = ", ".join(item.get("pages", [])[:3])
+            lines.append(f"- Duplicate title \"{item.get('value','')}\" on {len(item.get('pages', []))} pages: {pages_list}")
+    if dup_desc:
+        for item in dup_desc:
+            pages_list = ", ".join(item.get("pages", [])[:3])
+            value = item.get("value", "") or ""
+            snippet = value if len(value) <= 60 else value[:60] + "..."
+            lines.append(f"- Duplicate meta description \"{snippet}\" on {len(item.get('pages', []))} pages: {pages_list}")
+    return lines
+
+
+def _render_crawl_summary_markdown(summary: Dict[str, object]) -> List[str]:
+    lines: List[str] = []
+    pages = summary.get("pages_crawled", 0)
+    lines.append(f"- Sampled {pages} additional page(s)")
+    dup_titles = summary.get("duplicate_titles") or []
+    dup_desc = summary.get("duplicate_descriptions") or []
+    if not dup_titles and not dup_desc:
+        lines.append("- No duplicate titles or descriptions detected in the sample.")
+        return lines
+    if dup_titles:
+        lines.append("- Duplicate titles:")
+        for item in dup_titles:
+            pages_list = ", ".join(item.get("pages", [])[:3])
+            lines.append(f"  - \"{item.get('value','')}\" on {len(item.get('pages', []))} pages (e.g., {pages_list})")
+    if dup_desc:
+        lines.append("- Duplicate meta descriptions:")
+        for item in dup_desc:
+            pages_list = ", ".join(item.get("pages", [])[:3])
+            value = item.get("value", "") or ""
+            snippet = value if len(value) <= 60 else value[:60] + "..."
+            lines.append(f"  - \"{snippet}\" on {len(item.get('pages', []))} pages (e.g., {pages_list})")
+    return lines
+
+
+def _score_issues(issues: List[Issue], goal: str) -> Dict[str, Union[int, Dict[str, int]]]:
     per_cat: Dict[str, int] = {}
     total = 0
     max_total = 0
+    weights = _goal_weights(goal)
     for issue in issues:
         sev_score = SEVERITY_SCORES.get(issue.severity, 0)
         cat = issue.category or "general"
-        per_cat[cat] = per_cat.get(cat, 0) + sev_score
-        total += sev_score
-        max_total += 3  # assume each issue could be critical max weight
+        weight = weights.get(cat, 1.0)
+        weighted = sev_score * weight
+        per_cat[cat] = per_cat.get(cat, 0) + int(weighted * 1000)  # scaled to reduce float drift
+        total += weighted
+        max_total += 3 * weight  # assume each issue could be critical max weight
 
     # Normalize to 100
     overall = int((total / max_total) * 100) if max_total else 100
@@ -161,10 +241,38 @@ def _score_issues(issues: List[Issue]) -> Dict[str, Union[int, Dict[str, int]]]:
 
     per_cat_normalized: Dict[str, int] = {}
     for cat, score in per_cat.items():
-        possible = 3 * sum(1 for i in issues if (i.category or "general") == cat)
-        per_cat_normalized[cat] = int((score / possible) * 100) if possible else 100
+        possible = 3 * sum(1 for i in issues if (i.category or "general") == cat) * weights.get(cat, 1.0)
+        per_cat_normalized[cat] = int((score / 1000) / possible * 100) if possible else 100
 
     return {
         "overall": overall,
         "by_category": {CATEGORY_LABELS.get(k, k): v for k, v in per_cat_normalized.items()},
     }
+
+
+def _goal_weights(goal: str) -> Dict[str, float]:
+    goal_lower = (goal or "").lower()
+    weights = {
+        "performance": 1.0,
+        "content": 1.0,
+        "links": 1.0,
+        "crawl": 1.0,
+        "security": 1.0,
+        "status": 1.0,
+        "general": 1.0,
+    }
+    if any(term in goal_lower for term in ["traffic", "growth", "conversion"]):
+        weights["performance"] = 1.3
+        weights["content"] = 1.2
+        weights["links"] = 1.1
+    if any(term in goal_lower for term in ["migration", "canonical", "consolidation"]):
+        weights["crawl"] = 1.2
+        weights["status"] = 1.1
+    if any(term in goal_lower for term in ["security", "trust"]):
+        weights["security"] = 1.3
+    return weights
+
+
+def _weighted_severity(issue: Issue, goal: str) -> float:
+    weights = _goal_weights(goal)
+    return SEVERITY_SCORES.get(issue.severity, 0) * weights.get(issue.category or "general", 1.0)
