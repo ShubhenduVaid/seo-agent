@@ -1,14 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional, TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .analyzer import SimpleHTMLAnalyzer
 
 
+Impact = Literal["high", "medium", "low"]
+Effort = Literal["high", "medium", "low"]
+Confidence = Literal["high", "medium", "low"]
+
+
 @dataclass
 class Issue:
+    id: str  # stable identifier (e.g., "content.title_missing")
     severity: str  # expected: critical, important, recommended
     title: str
     what: str
@@ -17,6 +23,10 @@ class Issue:
     validation: str
     category: str = "general"
     page: str = ""
+    impact: Impact = "medium"
+    effort: Effort = "medium"
+    confidence: Confidence = "medium"
+    evidence: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -32,6 +42,8 @@ class AuditContext:
     analyzer: "SimpleHTMLAnalyzer"
     fetch_duration_ms: int = 0
     content_size: int = 0
+    content_type: str = ""
+    truncated: bool = False
 
 
 @dataclass
@@ -43,6 +55,8 @@ class FetchResult:
     error: Optional[str]
     duration_ms: int = 0
     content_size: int = 0
+    content_type: str = ""
+    truncated: bool = False
 
 
 @dataclass

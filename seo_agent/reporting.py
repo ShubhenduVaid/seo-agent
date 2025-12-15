@@ -9,6 +9,9 @@ from .models import AuditContext, Issue
 OutputFormat = Literal["text", "json", "markdown"]
 
 SEVERITY_SCORES = {"critical": 3, "important": 2, "recommended": 1}
+IMPACT_WEIGHTS = {"high": 1.3, "medium": 1.0, "low": 0.7}
+EFFORT_WEIGHTS = {"low": 0.7, "medium": 1.0, "high": 1.3}
+CONFIDENCE_WEIGHTS = {"high": 1.0, "medium": 0.85, "low": 0.7}
 CATEGORY_LABELS = {
     "status": "Response & Availability",
     "security": "Security & Headers",
@@ -45,16 +48,19 @@ def render_report(
     fmt: OutputFormat = "text",
     crawl_summary: Dict[str, Any] | None = None,
 ) -> str:
-    severity_order = {"critical": 0, "important": 1, "recommended": 2}
     grouped: Dict[str, List[Issue]] = {"critical": [], "important": [], "recommended": []}
     for issue in issues:
         grouped[issue.severity].append(issue)
 
     for group in grouped.values():
-        group.sort(key=lambda i: (severity_order.get(i.severity, 99), i.title))
+        group.sort(key=lambda i: (-_priority_score(i, goal), i.title))
 
     score_data = _score_issues(issues, goal)
-    top_five = sorted(issues, key=lambda i: (-_weighted_severity(i, goal), i.title))[:5]
+    top_actions = sorted(issues, key=lambda i: (-_priority_score(i, goal), i.title))[:8]
+    quick_wins = sorted(
+        [i for i in issues if i.impact == "high" and i.effort == "low"],
+        key=lambda i: (-_priority_score(i, goal), i.title),
+    )[:5]
 
     if fmt == "json":
         return json.dumps(
@@ -65,11 +71,13 @@ def render_report(
                 "response_time_ms": context.fetch_duration_ms,
                 "document_size_bytes": context.content_size,
                 "score": score_data,
-                "top_five": [issue.__dict__ for issue in top_five],
+                "top_five": [_issue_dict(issue, goal) for issue in top_actions[:5]],
+                "top_actions": [_issue_dict(issue, goal) for issue in top_actions],
+                "quick_wins": [_issue_dict(issue, goal) for issue in quick_wins],
                 "issues": {
-                    "critical": [issue.__dict__ for issue in grouped["critical"]],
-                    "important": [issue.__dict__ for issue in grouped["important"]],
-                    "recommended": [issue.__dict__ for issue in grouped["recommended"]],
+                    "critical": [_issue_dict(issue, goal) for issue in grouped["critical"]],
+                    "important": [_issue_dict(issue, goal) for issue in grouped["important"]],
+                    "recommended": [_issue_dict(issue, goal) for issue in grouped["recommended"]],
                 },
                 "crawl_summary": crawl_summary or {},
             },
@@ -89,12 +97,21 @@ def render_report(
         lines.append(f"Document size: {int(context.content_size/1024)} KB")
     lines.append(f"Overall score: {score_data['overall']} / 100")
     lines.append("")
-    lines.append("Top 5 priorities:")
-    if not top_five:
+    lines.append("Next actions (recommended order):")
+    if not top_actions:
         lines.append("- None detected.")
     else:
-        for issue in top_five:
-            lines.append(f"- [{issue.severity}] {issue.title}")
+        for issue in top_actions:
+            page_suffix = f" (page: {issue.page})" if getattr(issue, "page", "") else ""
+            lines.append(f"- [{issue.severity}] {issue.title}{page_suffix} (impact: {issue.impact}, effort: {issue.effort})")
+    lines.append("")
+    lines.append("Quick wins:")
+    if not quick_wins:
+        lines.append("- None detected.")
+    else:
+        for issue in quick_wins:
+            page_suffix = f" (page: {issue.page})" if getattr(issue, "page", "") else ""
+            lines.append(f"- {issue.title}{page_suffix}")
     lines.append("")
     if crawl_summary:
         lines.append("Crawl summary")
@@ -143,6 +160,29 @@ def _render_markdown(
         sections.append(f"**Document size:** {int(context.content_size/1024)} KB")
     sections.append("")
 
+    all_issues = grouped["critical"] + grouped["important"] + grouped["recommended"]
+    top_actions = sorted(all_issues, key=lambda i: (-_priority_score(i, goal), i.title))[:8]
+    quick_wins = sorted(
+        [i for i in all_issues if i.impact == "high" and i.effort == "low"],
+        key=lambda i: (-_priority_score(i, goal), i.title),
+    )[:5]
+    sections.append("## Next actions (recommended order)")
+    if not top_actions:
+        sections.append("- None detected.")
+    else:
+        for issue in top_actions:
+            page_suffix = f" (page: {issue.page})" if getattr(issue, "page", "") else ""
+            sections.append(f"- [{issue.severity}] {issue.title}{page_suffix} (impact: {issue.impact}, effort: {issue.effort})")
+    sections.append("")
+    sections.append("## Quick wins")
+    if not quick_wins:
+        sections.append("- None detected.")
+    else:
+        for issue in quick_wins:
+            page_suffix = f" (page: {issue.page})" if getattr(issue, "page", "") else ""
+            sections.append(f"- {issue.title}{page_suffix}")
+    sections.append("")
+
     def block(title: str, issues: List[Issue]) -> None:
         sections.append(f"## {title}")
         if not issues:
@@ -179,14 +219,21 @@ def _render_crawl_summary_text(summary: Dict[str, Any]) -> List[str]:
     pages = int(summary.get("pages_crawled", 0))
     lines.append(f"- Sampled {pages} additional page(s)")
     dup_titles = cast(List[Dict[str, Any]], summary.get("duplicate_titles") or [])
+    dup_h1 = cast(List[Dict[str, Any]], summary.get("duplicate_h1") or [])
     dup_desc = cast(List[Dict[str, Any]], summary.get("duplicate_descriptions") or [])
-    if not dup_titles and not dup_desc:
-        lines.append("- No duplicate titles or descriptions detected in the sample.")
+    if not dup_titles and not dup_h1 and not dup_desc:
+        lines.append("- No duplicate titles, H1s, or descriptions detected in the sample.")
         return lines
     if dup_titles:
         for item in dup_titles:
             pages_list = ", ".join(item.get("pages", [])[:3])
             lines.append(f"- Duplicate title \"{item.get('value','')}\" on {len(item.get('pages', []))} pages: {pages_list}")
+    if dup_h1:
+        for item in dup_h1:
+            pages_list = ", ".join(item.get("pages", [])[:3])
+            value = item.get("value", "") or ""
+            snippet = value if len(value) <= 60 else value[:60] + "..."
+            lines.append(f"- Duplicate H1 \"{snippet}\" on {len(item.get('pages', []))} pages: {pages_list}")
     if dup_desc:
         for item in dup_desc:
             pages_list = ", ".join(item.get("pages", [])[:3])
@@ -201,15 +248,23 @@ def _render_crawl_summary_markdown(summary: Dict[str, Any]) -> List[str]:
     pages = int(summary.get("pages_crawled", 0))
     lines.append(f"- Sampled {pages} additional page(s)")
     dup_titles = cast(List[Dict[str, Any]], summary.get("duplicate_titles") or [])
+    dup_h1 = cast(List[Dict[str, Any]], summary.get("duplicate_h1") or [])
     dup_desc = cast(List[Dict[str, Any]], summary.get("duplicate_descriptions") or [])
-    if not dup_titles and not dup_desc:
-        lines.append("- No duplicate titles or descriptions detected in the sample.")
+    if not dup_titles and not dup_h1 and not dup_desc:
+        lines.append("- No duplicate titles, H1s, or descriptions detected in the sample.")
         return lines
     if dup_titles:
         lines.append("- Duplicate titles:")
         for item in dup_titles:
             pages_list = ", ".join(item.get("pages", [])[:3])
             lines.append(f"  - \"{item.get('value','')}\" on {len(item.get('pages', []))} pages (e.g., {pages_list})")
+    if dup_h1:
+        lines.append("- Duplicate H1s:")
+        for item in dup_h1:
+            pages_list = ", ".join(item.get("pages", [])[:3])
+            value = item.get("value", "") or ""
+            snippet = value if len(value) <= 60 else value[:60] + "..."
+            lines.append(f"  - \"{snippet}\" on {len(item.get('pages', []))} pages (e.g., {pages_list})")
     if dup_desc:
         lines.append("- Duplicate meta descriptions:")
         for item in dup_desc:
@@ -276,3 +331,17 @@ def _goal_weights(goal: str) -> Dict[str, float]:
 def _weighted_severity(issue: Issue, goal: str) -> float:
     weights = _goal_weights(goal)
     return SEVERITY_SCORES.get(issue.severity, 0) * weights.get(issue.category or "general", 1.0)
+
+
+def _priority_score(issue: Issue, goal: str) -> float:
+    base = _weighted_severity(issue, goal)
+    impact = IMPACT_WEIGHTS.get(getattr(issue, "impact", "medium"), 1.0)
+    effort = EFFORT_WEIGHTS.get(getattr(issue, "effort", "medium"), 1.0)
+    confidence = CONFIDENCE_WEIGHTS.get(getattr(issue, "confidence", "medium"), 0.85)
+    return (base * impact * confidence) / max(effort, 0.01)
+
+
+def _issue_dict(issue: Issue, goal: str) -> Dict[str, Any]:
+    data: Dict[str, Any] = dict(issue.__dict__)
+    data["priority_score"] = round(_priority_score(issue, goal), 4)
+    return data

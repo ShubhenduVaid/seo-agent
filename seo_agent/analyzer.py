@@ -11,6 +11,7 @@ class SimpleHTMLAnalyzer(HTMLParser):
         super().__init__()
         self.title_parts: List[str] = []
         self.in_title = False
+        self.html_attrs: Dict[str, Optional[str]] = {}
         self.current_heading_tag: Optional[str] = None
         self.current_heading_parts: List[str] = []
         self.headings: List[Tuple[str, str]] = []
@@ -25,7 +26,9 @@ class SimpleHTMLAnalyzer(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
         attrs_dict = {k.lower(): v for k, v in attrs}
-        if tag == "title":
+        if tag == "html" and not self.html_attrs:
+            self.html_attrs = attrs_dict
+        elif tag == "title":
             self.in_title = True
             self.title_parts = []
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:

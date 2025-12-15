@@ -7,7 +7,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from typing import List
 
-from .constants import DEFAULT_TIMEOUT, USER_AGENT
+from .constants import DEFAULT_TIMEOUT, MAX_HTML_BYTES, USER_AGENT
 from .models import FetchResult, HeadResult, RobotsResult
 
 
@@ -15,6 +15,8 @@ def normalize_url(url: str) -> str:
     parsed = urllib.parse.urlparse(url.strip())
     if not parsed.scheme:
         parsed = parsed._replace(scheme="https")
+    elif parsed.scheme.lower() not in {"http", "https"}:
+        raise ValueError("Only http:// and https:// URLs are supported.")
     if not parsed.netloc and parsed.path:
         path_parts = parsed.path.split("/", 1)
         host = path_parts[0]
@@ -34,11 +36,34 @@ def fetch_url(
     start = time.monotonic()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=context) as resp:
-            body_bytes = resp.read()
-            encoding = resp.headers.get_content_charset() or "utf-8"
-            body = body_bytes.decode(encoding, errors="ignore")
             headers = {k: v for k, v in resp.headers.items()}
             status_code = getattr(resp, "status", None) or resp.getcode() or 0
+            content_type = resp.headers.get("Content-Type", "") or ""
+            mime_type = ""
+            try:
+                mime_type = resp.headers.get_content_type()
+            except Exception:  # pragma: no cover - extremely defensive
+                mime_type = ""
+            if mime_type and mime_type not in {"text/html", "application/xhtml+xml"}:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                return FetchResult(
+                    body="",
+                    final_url=resp.geturl(),
+                    headers=headers,
+                    status_code=status_code,
+                    error=f"Unsupported content type: {mime_type}",
+                    duration_ms=duration_ms,
+                    content_size=0,
+                    content_type=content_type,
+                    truncated=False,
+                )
+
+            body_bytes = resp.read(MAX_HTML_BYTES + 1)
+            truncated = len(body_bytes) > MAX_HTML_BYTES
+            if truncated:
+                body_bytes = body_bytes[:MAX_HTML_BYTES]
+            encoding = resp.headers.get_content_charset() or "utf-8"
+            body = body_bytes.decode(encoding, errors="ignore")
             duration_ms = int((time.monotonic() - start) * 1000)
             return FetchResult(
                 body=body,
@@ -48,10 +73,22 @@ def fetch_url(
                 error=None,
                 duration_ms=duration_ms,
                 content_size=len(body_bytes),
+                content_type=content_type,
+                truncated=truncated,
             )
     except Exception as exc:
         duration_ms = int((time.monotonic() - start) * 1000)
-        return FetchResult(body="", final_url=url, headers={}, status_code=0, error=str(exc), duration_ms=duration_ms, content_size=0)
+        return FetchResult(
+            body="",
+            final_url=url,
+            headers={},
+            status_code=0,
+            error=str(exc),
+            duration_ms=duration_ms,
+            content_size=0,
+            content_type="",
+            truncated=False,
+        )
 
 
 def load_robots_and_sitemaps(
