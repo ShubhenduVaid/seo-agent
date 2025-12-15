@@ -1,19 +1,16 @@
 import json
-import sys
 import unittest
 
-if sys.version_info >= (3, 10):
-    StrOrNone = str | None
-else:
-    from typing import Optional
-
-    StrOrNone = Optional[str]
+from typing import Optional
 
 from seo_agent.analyzer import SimpleHTMLAnalyzer
 from seo_agent.audit import SeoAuditAgent
-from seo_agent.models import AuditContext, FetchResult, HeadResult, RobotsResult
+from seo_agent.baseline import build_baseline, diff_baselines
+from seo_agent.models import AuditContext, FetchResult, HeadResult, Issue, RobotsResult
 from seo_agent.network import normalize_url
 from seo_agent.reporting import render_unreachable, render_report
+
+StrOrNone = Optional[str]
 
 
 class SeoAgentTests(unittest.TestCase):
@@ -233,6 +230,22 @@ class SeoAgentTests(unittest.TestCase):
         self.assertTrue(summary.get("duplicate_titles"))
         self.assertTrue(summary.get("duplicate_descriptions"))
 
+    def test_baseline_diff_detects_new_and_fixed(self) -> None:
+        issue_a = _make_issue("content.title_missing", "critical", "Title tag missing", page="https://example.com/")
+        issue_b = _make_issue("security.hsts_missing", "recommended", "HSTS header not detected", page="https://example.com/")
+        baseline = build_baseline("https://example.com", "goal", [issue_a])
+        current = build_baseline("https://example.com", "goal", [issue_b])
+        diff = diff_baselines(baseline, current)
+        summary = diff.get("summary", {})
+        self.assertEqual(summary.get("fixed"), 1)
+        self.assertEqual(summary.get("new"), 1)
+
+    def test_make_fetcher_returns_error_for_missing_page(self) -> None:
+        fetcher = _make_fetcher({"https://example.com": "<html><body></body></html>"})
+        result = fetcher("https://example.com/missing")
+        self.assertEqual(result.status_code, 404)
+        self.assertIsNotNone(result.error)
+
 
 def _build_context(
     url: str = "https://example.com",
@@ -259,10 +272,6 @@ def _build_context(
         fetch_duration_ms=fetch_duration_ms,
         content_size=size,
     )
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 def _make_fetcher(pages: dict) -> object:
@@ -294,3 +303,16 @@ def _make_robots_loader(content: str) -> object:
         return RobotsResult(content=content, error=None, sitemap_urls=[])
 
     return _loader
+
+
+def _make_issue(issue_id: str, severity: str, title: str, page: str) -> Issue:
+    return Issue(
+        id=issue_id,
+        severity=severity,
+        title=title,
+        what="",
+        steps=[],
+        outcome="",
+        validation="",
+        page=page,
+    )
