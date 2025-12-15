@@ -138,11 +138,9 @@ Project layout (key modules):
 - `seo_agent/reporting.py` - report rendering and formatting
 - `tests/` - unit tests for core utilities and checks
 
-## Roadmap / TODO
+## Documentation
 
 - `docs/ARCHITECTURE.md` - current architecture and data flow
-- `docs/ROADMAP.md` - plan to evolve into a best-in-class SEO CLI agent
-- `docs/TODO.md` - implementation backlog derived from the roadmap
 - `docs/OUTPUT_SCHEMA.md` - JSON output schema for `--format json`
 
 ## Packaging and release
