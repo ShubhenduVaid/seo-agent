@@ -1,0 +1,26 @@
+name: SEO Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL to audit
+        required: true
+        default: https://example.com
+      goal:
+        description: Primary goal for the audit
+        required: false
+        default: traffic growth
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ShubhenduVaid/seo-agent@v0.4.0
+        with:
+          url: ${{ inputs.url }}
+          goal: ${{ inputs.goal }}
+          format: github
+          fail_on_critical: false
+          extra_args: --crawl-depth 1 --crawl-limit 5 --crawl-exclude "/search*"

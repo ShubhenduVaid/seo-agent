@@ -1,0 +1,123 @@
+name: SEO Audit Agent
+description: Run a technical SEO audit and optionally publish a GitHub Actions summary.
+inputs:
+  url:
+    description: URL to audit (e.g., https://example.com)
+    required: true
+  goal:
+    description: Primary goal for the audit
+    required: false
+  format:
+    description: Output format (text, markdown, json, sarif, github)
+    required: false
+    default: github
+  config:
+    description: Path to an INI config file
+    required: false
+  report:
+    description: Optional path to write the report output
+    required: false
+  extra_args:
+    description: Additional CLI args to pass through (quoted string)
+    required: false
+  fail_on_critical:
+    description: Fail if critical issues are found (true/false)
+    required: false
+    default: "false"
+  write_summary:
+    description: Append stdout to GITHUB_STEP_SUMMARY (true/false)
+    required: false
+    default: "true"
+  quiet:
+    description: Pass --quiet to suppress prompts (true/false)
+    required: false
+    default: "true"
+  python_version:
+    description: Python version for runtime
+    required: false
+    default: "3.11"
+outputs:
+  exit_code:
+    description: Exit code returned by the CLI
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+    - name: Install SEO Audit Agent
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install "$GITHUB_ACTION_PATH"
+    - name: Run SEO audit
+      shell: bash
+      env:
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_GOAL: ${{ inputs.goal }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_REPORT: ${{ inputs.report }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra_args }}
+        INPUT_FAIL_ON_CRITICAL: ${{ inputs.fail_on_critical }}
+        INPUT_WRITE_SUMMARY: ${{ inputs.write_summary }}
+        INPUT_QUIET: ${{ inputs.quiet }}
+      run: |
+        python - <<'PY'
+        import os
+        import shlex
+        import subprocess
+        import sys
+
+        def is_true(value: str) -> bool:
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+
+        url = os.environ.get("INPUT_URL", "").strip()
+        if not url:
+            print("Input 'url' is required.", file=sys.stderr)
+            sys.exit(1)
+
+        cmd = ["seo-agent", url]
+        goal = os.environ.get("INPUT_GOAL", "").strip()
+        if goal:
+            cmd += ["--goal", goal]
+        fmt = os.environ.get("INPUT_FORMAT", "").strip() or "github"
+        cmd += ["--format", fmt]
+        config = os.environ.get("INPUT_CONFIG", "").strip()
+        if config:
+            cmd += ["--config", config]
+        report = os.environ.get("INPUT_REPORT", "").strip()
+        if report:
+            cmd += ["--report", report]
+        if is_true(os.environ.get("INPUT_FAIL_ON_CRITICAL", "")):
+            cmd.append("--fail-on-critical")
+        if is_true(os.environ.get("INPUT_QUIET", "")):
+            cmd.append("--quiet")
+        extra = os.environ.get("INPUT_EXTRA_ARGS", "").strip()
+        if extra:
+            cmd += shlex.split(extra)
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.stdout:
+            sys.stdout.write(result.stdout)
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+
+        summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "")
+        write_summary = is_true(os.environ.get("INPUT_WRITE_SUMMARY", ""))
+        if summary_path and write_summary and result.stdout:
+            with open(summary_path, "a", encoding="utf-8") as handle:
+                handle.write(result.stdout)
+                if not result.stdout.endswith("\n"):
+                    handle.write("\n")
+
+        output_path = os.environ.get("GITHUB_OUTPUT", "")
+        if output_path:
+            with open(output_path, "a", encoding="utf-8") as handle:
+                handle.write(f"exit_code={result.returncode}\n")
+
+        sys.exit(result.returncode)
+        PY
+branding:
+  icon: search
+  color: blue

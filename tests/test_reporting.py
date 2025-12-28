@@ -104,3 +104,33 @@ class ReportingTests(unittest.TestCase):
         self.assertIn("quick_wins", data)
         self.assertTrue(all("priority_score" in item for item in data["top_actions"]))
 
+    def test_render_report_sarif_contains_results_and_rules(self) -> None:
+        ctx = _context()
+        issues = [
+            _issue("content.title_missing", "critical", "Title tag missing", category="content", impact="high", effort="low"),
+            _issue("crawl.sitemap_not_advertised", "recommended", "XML sitemap not advertised", category="crawl"),
+        ]
+        data = json.loads(render_report(ctx, "goal", issues, fmt="sarif"))
+        self.assertEqual(data.get("version"), "2.1.0")
+        run = data.get("runs", [{}])[0]
+        tool = run.get("tool", {}).get("driver", {})
+        self.assertEqual(tool.get("name"), "SEO Audit Agent")
+        results = run.get("results", [])
+        self.assertEqual(len(results), 2)
+        levels = {result.get("level") for result in results}
+        self.assertIn("error", levels)
+        self.assertIn("note", levels)
+        rule_ids = {rule.get("id") for rule in tool.get("rules", [])}
+        self.assertIn("content.title_missing", rule_ids)
+
+    def test_render_report_github_summary_includes_counts(self) -> None:
+        ctx = _context()
+        issues = [
+            _issue("status.5xx", "critical", "Server error", category="status"),
+            _issue("content.meta", "important", "Meta description missing", category="content"),
+        ]
+        summary = render_report(ctx, "goal", issues, fmt="github")
+        self.assertIn("# SEO Audit Summary", summary)
+        self.assertIn("| Critical | 1 |", summary)
+        self.assertIn("| Important | 1 |", summary)
+        self.assertIn("## Top actions", summary)

@@ -3,18 +3,76 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from typing import Iterable
+from pathlib import Path
+from typing import Iterable, List
 
+from . import __version__
 from .audit import SeoAuditAgent
 from .baseline import build_baseline, diff_baselines, load_baseline, render_diff_markdown, render_diff_text, save_baseline
+from .checks.registry import describe_checks
+from .config import ConfigError, load_config
 from .constants import DEFAULT_TIMEOUT, USER_AGENT
 from .integrations.pagespeed import load_pagespeed_metrics
 from .integrations.search_console import load_gsc_pages_csv
 from .network import normalize_url
 
 
+def _flag_in_args(argv: List[str], flag: str) -> bool:
+    if flag in argv:
+        return True
+    prefix = f"{flag}="
+    return any(arg.startswith(prefix) for arg in argv)
+
+
+def _split_patterns(values: List[str] | None) -> List[str]:
+    patterns: List[str] = []
+    for value in values or []:
+        for part in str(value).split(","):
+            part = part.strip()
+            if part:
+                patterns.append(part)
+    return patterns
+
+
+def _finalize_patterns(
+    raw_values: List[str] | None,
+    default_values: List[str] | None,
+    argv: List[str],
+    flag: str,
+) -> List[str]:
+    if _flag_in_args(argv, flag):
+        return _split_patterns(raw_values)
+    if default_values:
+        return list(default_values)
+    return []
+
+
+def _normalize_list_default(value: object | None) -> List[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item).strip()]
+    return None
+
+
+def _load_config_defaults(argv: List[str]) -> tuple[dict[str, object], list[str], str | None]:
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument("--config", help="Path to an INI config file.")
+    config_args, _ = config_parser.parse_known_args(argv)
+    if not config_args.config:
+        return {}, [], None
+    values, unknown = load_config(config_args.config)
+    return values, unknown, config_args.config
+
+
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
+    argv_list = list(argv)
+    config_values, config_unknown, config_path = _load_config_defaults(argv_list)
+    crawl_include_default = _normalize_list_default(config_values.pop("crawl_include", None))
+    crawl_exclude_default = _normalize_list_default(config_values.pop("crawl_exclude", None))
     parser = argparse.ArgumentParser(description="Run a technical SEO audit for a URL.")
+    parser.add_argument("--version", action="version", version=f"seo-agent {__version__}")
+    parser.add_argument("--config", default=config_path, help="Path to an INI config file with defaults.")
     parser.add_argument("url", nargs="?", help="URL to audit (e.g., https://example.com)")
     parser.add_argument("--goal", help="Primary goal for the audit (traffic growth, technical cleanup, migration prep, etc.)")
     parser.add_argument(
@@ -39,8 +97,13 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         help="Enable loading additional checks from installed entry points (group: seo_agent.checks).",
     )
     parser.add_argument(
+        "--list-checks",
+        action="store_true",
+        help="List available checks and exit.",
+    )
+    parser.add_argument(
         "--format",
-        choices=["text", "json", "markdown"],
+        choices=["text", "json", "markdown", "sarif", "github"],
         default="text",
         help="Output format. Defaults to text.",
     )
@@ -84,6 +147,16 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         help="Seed crawl from sitemap URLs (respects --crawl-limit).",
     )
     parser.add_argument(
+        "--crawl-include",
+        action="append",
+        help="Glob pattern(s) to include in crawl sampling (repeatable or comma-separated).",
+    )
+    parser.add_argument(
+        "--crawl-exclude",
+        action="append",
+        help="Glob pattern(s) to exclude from crawl sampling (repeatable or comma-separated).",
+    )
+    parser.add_argument(
         "--check-links",
         action="store_true",
         help="Enable bounded internal link checking via HEAD requests (may increase audit time).",
@@ -114,11 +187,43 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         "--gsc-pages-csv",
         help="Optional path to a Search Console 'Pages' export CSV to weight priorities by impressions/clicks.",
     )
-    return parser.parse_args(list(argv))
+    if config_values:
+        parser.set_defaults(**config_values)
+    args = parser.parse_args(argv_list)
+    args.crawl_include = _finalize_patterns(args.crawl_include, crawl_include_default, argv_list, "--crawl-include")
+    args.crawl_exclude = _finalize_patterns(args.crawl_exclude, crawl_exclude_default, argv_list, "--crawl-exclude")
+    setattr(args, "config_unknown", config_unknown)
+    return args
+
+
+def render_check_list(descriptions: List[dict[str, object]], plugins_enabled: bool) -> str:
+    total = len(descriptions)
+    lines = [f"Available checks ({total}):"]
+    for item in descriptions:
+        name = item.get("name", "unknown")
+        include = "yes" if item.get("include_on_crawled_pages") else "no"
+        lines.append(f"- {name} (runs on crawled pages: {include})")
+    if plugins_enabled:
+        lines.append("Plugins: enabled")
+    else:
+        lines.append("Tip: use --enable-plugins to include installed plugin checks.")
+    return "\n".join(lines)
 
 
 def main(argv: Iterable[str] | None = None) -> int:
-    args = parse_args(argv if argv is not None else sys.argv[1:])
+    try:
+        args = parse_args(argv if argv is not None else sys.argv[1:])
+    except ConfigError as exc:
+        print(str(exc))
+        return 1
+    config_unknown = getattr(args, "config_unknown", [])
+    if config_unknown and not args.quiet and args.config:
+        unknown_list = ", ".join(sorted(str(item) for item in config_unknown))
+        print(f"Config file {args.config} has unknown keys: {unknown_list}")
+    if args.list_checks:
+        descriptions = describe_checks(enable_plugins=args.enable_plugins)
+        print(render_check_list(descriptions, args.enable_plugins))
+        return 0
     url = args.url or input("Enter the URL to audit: ").strip()
     if not url:
         print("A URL is required.")
@@ -160,6 +265,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         include_sitemaps=args.crawl_sitemaps,
         crawl_max_seconds=args.crawl_max_seconds,
         page_metrics=page_metrics,
+        crawl_include=args.crawl_include,
+        crawl_exclude=args.crawl_exclude,
     )
 
     output = report
@@ -211,8 +318,10 @@ def main(argv: Iterable[str] | None = None) -> int:
     print(output)
     if args.report:
         try:
-            with open(args.report, "w", encoding="utf-8") as f:
-                f.write(output)
+            report_path = Path(args.report)
+            if report_path.parent and not report_path.parent.exists():
+                report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(output, encoding="utf-8")
         except OSError as exc:
             print(f"Could not write report to {args.report}: {exc}")
 
