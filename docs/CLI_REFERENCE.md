@@ -16,6 +16,7 @@ python3 -m seo_agent <url> [options]
 
 ## General options
 
+- `--config <path>` - load defaults from an INI config file
 - `--goal "..."` - primary objective (traffic growth, technical cleanup, migration prep)
 - `--timeout <seconds>` - network timeout for requests
 - `--user-agent "..."` - custom User-Agent header
@@ -23,6 +24,28 @@ python3 -m seo_agent <url> [options]
 - `--quiet` - suppress prompts and non-essential messages (CI-friendly)
 - `--version` - print version and exit
 - `--list-checks` - list built-in checks and exit
+
+## Configuration
+
+Create a `seo-agent.ini` (or any INI file) with defaults:
+
+```ini
+[seo-agent]
+goal = traffic growth
+format = json
+crawl_depth = 1
+crawl_limit = 10
+crawl_delay = 0.5
+check_links = true
+```
+
+Run with:
+
+```bash
+seo-agent --config ./seo-agent.ini https://example.com
+```
+
+CLI flags always override config values.
 
 ## Output and automation
 

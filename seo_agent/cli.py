@@ -10,15 +10,29 @@ from . import __version__
 from .audit import SeoAuditAgent
 from .baseline import build_baseline, diff_baselines, load_baseline, render_diff_markdown, render_diff_text, save_baseline
 from .checks.registry import describe_checks
+from .config import ConfigError, load_config
 from .constants import DEFAULT_TIMEOUT, USER_AGENT
 from .integrations.pagespeed import load_pagespeed_metrics
 from .integrations.search_console import load_gsc_pages_csv
 from .network import normalize_url
 
 
+def _load_config_defaults(argv: List[str]) -> tuple[dict[str, object], list[str], str | None]:
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument("--config", help="Path to an INI config file.")
+    config_args, _ = config_parser.parse_known_args(argv)
+    if not config_args.config:
+        return {}, [], None
+    values, unknown = load_config(config_args.config)
+    return values, unknown, config_args.config
+
+
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
+    argv_list = list(argv)
+    config_values, config_unknown, config_path = _load_config_defaults(argv_list)
     parser = argparse.ArgumentParser(description="Run a technical SEO audit for a URL.")
     parser.add_argument("--version", action="version", version=f"seo-agent {__version__}")
+    parser.add_argument("--config", default=config_path, help="Path to an INI config file with defaults.")
     parser.add_argument("url", nargs="?", help="URL to audit (e.g., https://example.com)")
     parser.add_argument("--goal", help="Primary goal for the audit (traffic growth, technical cleanup, migration prep, etc.)")
     parser.add_argument(
@@ -123,7 +137,11 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         "--gsc-pages-csv",
         help="Optional path to a Search Console 'Pages' export CSV to weight priorities by impressions/clicks.",
     )
-    return parser.parse_args(list(argv))
+    if config_values:
+        parser.set_defaults(**config_values)
+    args = parser.parse_args(argv_list)
+    setattr(args, "config_unknown", config_unknown)
+    return args
 
 
 def render_check_list(descriptions: List[dict[str, object]], plugins_enabled: bool) -> str:
@@ -141,7 +159,15 @@ def render_check_list(descriptions: List[dict[str, object]], plugins_enabled: bo
 
 
 def main(argv: Iterable[str] | None = None) -> int:
-    args = parse_args(argv if argv is not None else sys.argv[1:])
+    try:
+        args = parse_args(argv if argv is not None else sys.argv[1:])
+    except ConfigError as exc:
+        print(str(exc))
+        return 1
+    config_unknown = getattr(args, "config_unknown", [])
+    if config_unknown and not args.quiet and args.config:
+        unknown_list = ", ".join(sorted(str(item) for item in config_unknown))
+        print(f"Config file {args.config} has unknown keys: {unknown_list}")
     if args.list_checks:
         descriptions = describe_checks(enable_plugins=args.enable_plugins)
         print(render_check_list(descriptions, args.enable_plugins))

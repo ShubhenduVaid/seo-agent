@@ -76,6 +76,7 @@ Examples:
 - `seo-agent https://example.com --report /tmp/report.txt` (also write the report to a file)
 - `seo-agent --list-checks` (show available checks)
 - `seo-agent --version`
+- `seo-agent --config ./seo-agent.ini https://example.com` (use shared defaults from a config file)
 
 For backward compatibility you can also run `python3 seo_agent.py ...` from the project root.
 
@@ -132,6 +133,32 @@ URL audited: https://example.com
 - `--quiet` skips interactive prompts (useful in CI)
 - `--fail-on-critical` exits non-zero if critical issues are found (useful for CI gates)
 
+## Configuration file
+
+Use an INI file to keep repeatable defaults and team presets.
+
+```ini
+[seo-agent]
+url = https://example.com
+goal = traffic growth
+format = markdown
+crawl_depth = 1
+crawl_limit = 8
+crawl_delay = 0.5
+crawl_sitemaps = true
+check_links = true
+report = reports/seo-report.md
+fail_on_critical = true
+```
+
+Run with:
+
+```bash
+seo-agent --config ./seo-agent.ini
+```
+
+CLI flags always override config values. Unknown keys in the config will be reported unless `--quiet` is set.
+
 ## Baselines and comparisons
 
 - `--save-baseline <path>` saves a JSON snapshot of issues
@@ -153,6 +180,7 @@ See `docs/INTEGRATIONS.md` for instructions on generating these files.
 - `docs/INTEGRATIONS.md` - PageSpeed and Search Console offline enrichers
 - `docs/TROUBLESHOOTING.md` - common issues and fixes
 - `docs/ROADMAP.md` - project direction and future features
+- `docs/DISCOVERABILITY.md` - GitHub visibility checklist
 - `CHANGELOG.md` - release notes
 
 ## Development
