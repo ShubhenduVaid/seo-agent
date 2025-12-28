@@ -49,7 +49,7 @@ CLI flags always override config values.
 
 ## Output and automation
 
-- `--format text|json|markdown` - output format (default: text)
+- `--format text|json|markdown|sarif` - output format (default: text)
 - `--report <path>` - write the rendered report to a file
 - `--fail-on-critical` - exit with status 2 if any critical issues are found
 
@@ -90,4 +90,5 @@ seo-agent https://example.com --save-baseline /tmp/seo-baseline.json
 seo-agent https://example.com --compare /tmp/seo-baseline.json
 seo-agent https://example.com --psi-json ./lighthouse.json
 seo-agent https://example.com --gsc-pages-csv ./gsc-pages.csv
+seo-agent https://example.com --format sarif --report ./reports/seo.sarif
 ```

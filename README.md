@@ -77,6 +77,7 @@ Examples:
 - `seo-agent --list-checks` (show available checks)
 - `seo-agent --version`
 - `seo-agent --config ./seo-agent.ini https://example.com` (use shared defaults from a config file)
+- `seo-agent https://example.com --format sarif --report ./reports/seo.sarif` (SARIF for code scanning)
 
 For backward compatibility you can also run `python3 seo_agent.py ...` from the project root.
 
@@ -129,6 +130,7 @@ URL audited: https://example.com
 - Default `text`
 - `--format json` for structured output (good for CI)
 - `--format markdown` for docs/issue comments
+- `--format sarif` for GitHub code scanning / SARIF-compatible tooling
 - `--report <path>` to write the rendered output to a file
 - `--quiet` skips interactive prompts (useful in CI)
 - `--fail-on-critical` exits non-zero if critical issues are found (useful for CI gates)

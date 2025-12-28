@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Literal, Union, cast
 
 from .models import AuditContext, Issue
 
-OutputFormat = Literal["text", "json", "markdown"]
+OutputFormat = Literal["text", "json", "markdown", "sarif"]
 
 SEVERITY_SCORES = {"critical": 3, "important": 2, "recommended": 1}
 IMPACT_WEIGHTS = {"high": 1.3, "medium": 1.0, "low": 0.7}
@@ -21,6 +21,8 @@ CATEGORY_LABELS = {
     "links": "Links & Structure",
     "general": "General",
 }
+SARIF_LEVELS = {"critical": "error", "important": "warning", "recommended": "note"}
+SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
 
 
 def render_unreachable(url: str, goal: str, error: str) -> str:
@@ -83,6 +85,9 @@ def render_report(
             },
             indent=2,
         )
+
+    if fmt == "sarif":
+        return _render_sarif(context, goal, issues)
 
     if fmt == "markdown":
         return _render_markdown(context, goal, grouped, crawl_summary)
@@ -273,6 +278,104 @@ def _render_crawl_summary_markdown(summary: Dict[str, Any]) -> List[str]:
             snippet = value if len(value) <= 60 else value[:60] + "..."
             lines.append(f"  - \"{snippet}\" on {len(item.get('pages', []))} pages (e.g., {pages_list})")
     return lines
+
+
+def _render_sarif(context: AuditContext, goal: str, issues: List[Issue]) -> str:
+    rules: Dict[str, Dict[str, Any]] = {}
+    results: List[Dict[str, Any]] = []
+    for issue in issues:
+        if issue.id not in rules:
+            rules[issue.id] = _sarif_rule(issue)
+        message_text = issue.title
+        if issue.what:
+            message_text = f"{issue.title}: {issue.what}"
+        location_uri = issue.page or context.final_url
+        result: Dict[str, Any] = {
+            "ruleId": issue.id,
+            "level": _sarif_level(issue.severity),
+            "message": {"text": message_text},
+            "properties": {
+                "severity": issue.severity,
+                "category": issue.category,
+                "impact": issue.impact,
+                "effort": issue.effort,
+                "confidence": issue.confidence,
+                "priority_score": round(_priority_score(issue, goal), 4),
+                "page": issue.page,
+                "evidence": issue.evidence,
+            },
+        }
+        if location_uri:
+            result["locations"] = [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": location_uri},
+                    }
+                }
+            ]
+        results.append(result)
+
+    sarif: Dict[str, Any] = {
+        "$schema": SARIF_SCHEMA,
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "SEO Audit Agent",
+                        "informationUri": "https://github.com/ShubhenduVaid/seo-agent",
+                        "rules": list(rules.values()),
+                    }
+                },
+                "properties": {
+                    "goal": goal or "not provided",
+                    "url": context.final_url,
+                    "status_code": context.status_code,
+                    "response_time_ms": context.fetch_duration_ms,
+                    "document_size_bytes": context.content_size,
+                },
+                "results": results,
+            }
+        ],
+    }
+    return json.dumps(sarif, indent=2)
+
+
+def _sarif_rule(issue: Issue) -> Dict[str, Any]:
+    return {
+        "id": issue.id,
+        "name": issue.id,
+        "shortDescription": {"text": issue.title},
+        "fullDescription": {"text": issue.what},
+        "help": {"text": _sarif_help_text(issue)},
+        "defaultConfiguration": {"level": _sarif_level(issue.severity)},
+        "properties": {
+            "category": issue.category,
+            "severity": issue.severity,
+            "impact": issue.impact,
+            "effort": issue.effort,
+            "confidence": issue.confidence,
+        },
+    }
+
+
+def _sarif_help_text(issue: Issue) -> str:
+    lines = [issue.title]
+    if issue.what:
+        lines.append(f"What: {issue.what}")
+    if issue.steps:
+        lines.append("Fix steps:")
+        for step in issue.steps:
+            lines.append(f"- {step}")
+    if issue.outcome:
+        lines.append(f"Outcome: {issue.outcome}")
+    if issue.validation:
+        lines.append(f"Validate: {issue.validation}")
+    return "\n".join(lines)
+
+
+def _sarif_level(severity: str) -> str:
+    return SARIF_LEVELS.get(severity, "warning")
 
 
 def _score_issues(issues: List[Issue], goal: str) -> Dict[str, Union[int, Dict[str, int]]]:

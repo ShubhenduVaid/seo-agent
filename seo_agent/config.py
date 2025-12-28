@@ -38,7 +38,7 @@ _STR_KEYS = {
     "gsc_pages_csv",
 }
 
-_VALID_FORMATS = {"text", "json", "markdown"}
+_VALID_FORMATS = {"text", "json", "markdown", "sarif"}
 
 
 def load_config(path: str) -> Tuple[Dict[str, Any], List[str]]:

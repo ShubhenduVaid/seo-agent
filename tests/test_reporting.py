@@ -104,3 +104,21 @@ class ReportingTests(unittest.TestCase):
         self.assertIn("quick_wins", data)
         self.assertTrue(all("priority_score" in item for item in data["top_actions"]))
 
+    def test_render_report_sarif_contains_results_and_rules(self) -> None:
+        ctx = _context()
+        issues = [
+            _issue("content.title_missing", "critical", "Title tag missing", category="content", impact="high", effort="low"),
+            _issue("crawl.sitemap_not_advertised", "recommended", "XML sitemap not advertised", category="crawl"),
+        ]
+        data = json.loads(render_report(ctx, "goal", issues, fmt="sarif"))
+        self.assertEqual(data.get("version"), "2.1.0")
+        run = data.get("runs", [{}])[0]
+        tool = run.get("tool", {}).get("driver", {})
+        self.assertEqual(tool.get("name"), "SEO Audit Agent")
+        results = run.get("results", [])
+        self.assertEqual(len(results), 2)
+        levels = {result.get("level") for result in results}
+        self.assertIn("error", levels)
+        self.assertIn("note", levels)
+        rule_ids = {rule.get("id") for rule in tool.get("rules", [])}
+        self.assertIn("content.title_missing", rule_ids)

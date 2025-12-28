@@ -12,6 +12,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - GitHub community files and CI workflow (see `.github/`).
 - INI config file support via `--config`.
 - Discoverability checklist documentation.
+- SARIF output format for code scanning workflows.
 
 ### Changed
 - README expanded with install guidance, docs links, and workflows.

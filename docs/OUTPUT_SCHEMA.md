@@ -2,6 +2,8 @@
 
 When running with `--format json`, the CLI prints a single JSON object to stdout.
 
+For SARIF output (`--format sarif`), the CLI emits a SARIF 2.1.0 JSON document with results mapped from audit issues. Severity mapping: `critical` → `error`, `important` → `warning`, `recommended` → `note`.
+
 ## Top-level fields
 
 - `goal` (string): Goal passed via `--goal` (or `"not provided"`).
