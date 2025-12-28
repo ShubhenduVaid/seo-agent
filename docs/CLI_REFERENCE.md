@@ -37,6 +37,8 @@ crawl_depth = 1
 crawl_limit = 10
 crawl_delay = 0.5
 check_links = true
+crawl_include = /blog/*
+crawl_exclude = /search*, /tag/*
 ```
 
 Run with:
@@ -60,6 +62,10 @@ CLI flags always override config values.
 - `--crawl-delay <seconds>` - delay between crawl requests
 - `--crawl-max-seconds <seconds>` - time budget for crawling (0 disables)
 - `--crawl-sitemaps` - seed crawl from sitemap URLs
+- `--crawl-include <pattern>` - include only matching URLs in crawl sampling (glob patterns)
+- `--crawl-exclude <pattern>` - exclude matching URLs from crawl sampling (glob patterns)
+
+Patterns are simple glob matches against the URL or path (examples: `/blog/*`, `*/search*`). Excludes always win.
 
 ## Link checks
 
@@ -91,4 +97,5 @@ seo-agent https://example.com --compare /tmp/seo-baseline.json
 seo-agent https://example.com --psi-json ./lighthouse.json
 seo-agent https://example.com --gsc-pages-csv ./gsc-pages.csv
 seo-agent https://example.com --format sarif --report ./reports/seo.sarif
+seo-agent https://example.com --crawl-include "/blog/*" --crawl-exclude "*/tag/*"
 ```

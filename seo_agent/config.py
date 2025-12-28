@@ -37,6 +37,10 @@ _STR_KEYS = {
     "psi_json",
     "gsc_pages_csv",
 }
+_LIST_KEYS = {
+    "crawl_include",
+    "crawl_exclude",
+}
 
 _VALID_FORMATS = {"text", "json", "markdown", "sarif"}
 
@@ -80,6 +84,8 @@ def load_config(path: str) -> Tuple[Dict[str, Any], List[str]]:
                 raise ConfigError(f"Invalid number for {raw_key}: {raw_value}") from exc
         elif key in _STR_KEYS:
             values[key] = raw_value.strip()
+        elif key in _LIST_KEYS:
+            values[key] = _split_list(raw_value)
         else:
             unknown.append(raw_key)
 
@@ -92,3 +98,13 @@ def load_config(path: str) -> Tuple[Dict[str, Any], List[str]]:
         values["format"] = fmt
 
     return values, unknown
+
+
+def _split_list(value: str) -> List[str]:
+    items: List[str] = []
+    for line in value.splitlines():
+        for part in line.split(","):
+            item = part.strip()
+            if item:
+                items.append(item)
+    return items

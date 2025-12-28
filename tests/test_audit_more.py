@@ -55,6 +55,21 @@ class AuditMoreTests(unittest.TestCase):
         self.assertFalse(any("mailto:" in u for u in links))
         self.assertFalse(any("other.com" in u for u in links))
 
+    def test_collect_same_host_links_honors_include_exclude_patterns(self) -> None:
+        agent = SeoAuditAgent(fetch_func=_fetch_ok, robots_loader=_robots_loader)
+        hrefs = ["/blog/post", "/search?q=term", "/about", "/tag/item"]
+        links = agent._collect_same_host_links(
+            "https://example.com/base",
+            hrefs,
+            "example.com",
+            include_patterns=["/blog/*", "/about"],
+            exclude_patterns=["*/search*", "*/tag/*"],
+        )
+        self.assertIn("https://example.com/blog/post", links)
+        self.assertIn("https://example.com/about", links)
+        self.assertFalse(any("search" in u for u in links))
+        self.assertFalse(any("tag" in u for u in links))
+
     def test_crawl_sample_returns_empty_when_disabled(self) -> None:
         analyzer = SimpleHTMLAnalyzer()
         analyzer.feed("<html><body></body></html>")

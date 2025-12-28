@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import time
 import urllib.parse
 from collections import deque
@@ -57,6 +58,8 @@ class SeoAuditAgent:
         include_sitemaps: bool = False,
         crawl_max_seconds: float = 0.0,
         page_metrics: Dict[str, Dict[str, float]] | None = None,
+        crawl_include: List[str] | None = None,
+        crawl_exclude: List[str] | None = None,
     ) -> tuple[str, List[Issue]]:
         try:
             normalized_url = normalize_url(url)
@@ -114,6 +117,8 @@ class SeoAuditAgent:
                 include_sitemaps=include_sitemaps,
                 max_seconds=crawl_max_seconds,
                 robots_rules=robots_rules,
+                include_patterns=crawl_include,
+                exclude_patterns=crawl_exclude,
             )
             for crawl_ctx in crawl_contexts:
                 issues.extend(self._collect_issues(crawl_ctx, include_crawl_checks=False))
@@ -150,11 +155,19 @@ class SeoAuditAgent:
         include_sitemaps: bool,
         max_seconds: float,
         robots_rules: RobotsRules,
+        include_patterns: List[str] | None = None,
+        exclude_patterns: List[str] | None = None,
     ) -> List[AuditContext]:
         if depth <= 0 or limit <= 0:
             return []
         domain = urllib.parse.urlparse(base_context.final_url).netloc.lower()
-        seeds = self._collect_same_host_links(base_context.final_url, base_context.analyzer.links, domain)
+        seeds = self._collect_same_host_links(
+            base_context.final_url,
+            base_context.analyzer.links,
+            domain,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+        )
         if include_sitemaps and robots_result.sitemap_urls:
             sitemap_urls = load_sitemap_urls(
                 robots_result.sitemap_urls,
@@ -163,6 +176,8 @@ class SeoAuditAgent:
                 user_agent=self.user_agent,
             )
             for u in sitemap_urls:
+                if not _should_crawl_url(u, include_patterns, exclude_patterns):
+                    continue
                 parsed = urllib.parse.urlparse(u)
                 if parsed.netloc.lower() != domain:
                     continue
@@ -217,7 +232,13 @@ class SeoAuditAgent:
             contexts.append(ctx)
 
             if current_depth < depth:
-                new_links = self._collect_same_host_links(fetch_result.final_url, analyzer.links, domain)
+                new_links = self._collect_same_host_links(
+                    fetch_result.final_url,
+                    analyzer.links,
+                    domain,
+                    include_patterns=include_patterns,
+                    exclude_patterns=exclude_patterns,
+                )
                 for link in new_links:
                     if link not in seen:
                         queue.append((link, current_depth + 1))
@@ -226,7 +247,14 @@ class SeoAuditAgent:
                 time.sleep(min_delay)
         return contexts
 
-    def _collect_same_host_links(self, base_url: str, hrefs: List[str], domain: str) -> List[str]:
+    def _collect_same_host_links(
+        self,
+        base_url: str,
+        hrefs: List[str],
+        domain: str,
+        include_patterns: List[str] | None = None,
+        exclude_patterns: List[str] | None = None,
+    ) -> List[str]:
         collected: List[str] = []
         for href in hrefs:
             resolved = urllib.parse.urljoin(base_url, href)
@@ -234,6 +262,8 @@ class SeoAuditAgent:
             if parsed.scheme not in {"http", "https"}:
                 continue
             if parsed.netloc.lower() != domain:
+                continue
+            if not _should_crawl_url(resolved, include_patterns, exclude_patterns):
                 continue
             path = parsed.path or "/"
             normalized = normalize_url(urllib.parse.urlunparse((parsed.scheme, parsed.netloc, path, "", "", "")))
@@ -295,3 +325,29 @@ class SeoAuditAgent:
                 issue.impact = "high"
             elif impressions >= 100 and issue.impact == "low":
                 issue.impact = "medium"
+
+
+def _matches_patterns(url: str, patterns: List[str] | None) -> bool:
+    if not patterns:
+        return False
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path or "/"
+    path_query = f"{path}?{parsed.query}" if parsed.query else path
+    for pattern in patterns:
+        if not pattern:
+            continue
+        if fnmatch.fnmatch(url, pattern):
+            return True
+        if fnmatch.fnmatch(path_query, pattern):
+            return True
+        if fnmatch.fnmatch(path, pattern):
+            return True
+    return False
+
+
+def _should_crawl_url(url: str, include_patterns: List[str] | None, exclude_patterns: List[str] | None) -> bool:
+    if exclude_patterns and _matches_patterns(url, exclude_patterns):
+        return False
+    if include_patterns:
+        return _matches_patterns(url, include_patterns)
+    return True

@@ -38,6 +38,14 @@ If the crawl ends early, increase the limits or time budget:
 seo-agent https://example.com --crawl-depth 2 --crawl-limit 20 --crawl-max-seconds 60
 ```
 
+## Crawl hits search or filter pages
+
+Use crawl filters to skip search, tag, or faceted URLs:
+
+```bash
+seo-agent https://example.com --crawl-exclude "/search*" --crawl-exclude "*/tag/*"
+```
+
 ## JSON output includes extra text
 
 Use `--format json --quiet` to avoid prompts and non-essential output in CI environments.

@@ -30,6 +30,8 @@ class ConfigTests(unittest.TestCase):
             crawl-depth = 2
             crawl_delay = 0.5
             quiet = true
+            crawl_include = /blog/*, /docs/*
+            crawl_exclude = /search*, /tag/*
             unknown_key = value
             """
         )
@@ -42,6 +44,8 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(values.get("crawl_depth"), 2)
         self.assertEqual(values.get("crawl_delay"), 0.5)
         self.assertTrue(values.get("quiet"))
+        self.assertEqual(values.get("crawl_include"), ["/blog/*", "/docs/*"])
+        self.assertEqual(values.get("crawl_exclude"), ["/search*", "/tag/*"])
         self.assertIn("unknown_key", unknown)
 
     def test_load_config_invalid_format_raises(self) -> None:

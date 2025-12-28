@@ -73,6 +73,7 @@ Examples:
 - `seo-agent https://example.com --crawl-depth 1 --crawl-limit 5` (sample a handful of internal pages)
 - `seo-agent https://example.com --crawl-sitemaps --crawl-limit 8` (seed crawl from sitemaps)
 - `seo-agent https://example.com --crawl-depth 1 --crawl-delay 0.5` (polite crawl with delay; honors robots.txt crawl-delay)
+- `seo-agent https://example.com --crawl-include "/blog/*" --crawl-exclude "*/tag/*"` (scope crawl sampling)
 - `seo-agent https://example.com --report /tmp/report.txt` (also write the report to a file)
 - `seo-agent --list-checks` (show available checks)
 - `seo-agent --version`
@@ -91,6 +92,8 @@ Each issue includes what is wrong, why it matters, step-by-step fixes, expected 
 - Response time and document size are included for quick Web Vitals triage.
 - Goal-aware scoring slightly boosts performance/content/linking issues when goals mention traffic/growth.
 - Crawl summary highlights duplicate titles/descriptions across sampled pages.
+
+Crawl filters use glob patterns against URLs or paths (e.g., `/blog/*`, `*/search*`). Excludes always win.
 
 ### What it checks
 
@@ -148,6 +151,8 @@ crawl_depth = 1
 crawl_limit = 8
 crawl_delay = 0.5
 crawl_sitemaps = true
+crawl_include = /blog/*
+crawl_exclude = /search*, /tag/*
 check_links = true
 report = reports/seo-report.md
 fail_on_critical = true

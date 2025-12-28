@@ -17,6 +17,36 @@ from .integrations.search_console import load_gsc_pages_csv
 from .network import normalize_url
 
 
+def _flag_in_args(argv: List[str], flag: str) -> bool:
+    if flag in argv:
+        return True
+    prefix = f"{flag}="
+    return any(arg.startswith(prefix) for arg in argv)
+
+
+def _split_patterns(values: List[str] | None) -> List[str]:
+    patterns: List[str] = []
+    for value in values or []:
+        for part in str(value).split(","):
+            part = part.strip()
+            if part:
+                patterns.append(part)
+    return patterns
+
+
+def _finalize_patterns(
+    raw_values: List[str] | None,
+    default_values: List[str] | None,
+    argv: List[str],
+    flag: str,
+) -> List[str]:
+    if _flag_in_args(argv, flag):
+        return _split_patterns(raw_values)
+    if default_values:
+        return list(default_values)
+    return []
+
+
 def _load_config_defaults(argv: List[str]) -> tuple[dict[str, object], list[str], str | None]:
     config_parser = argparse.ArgumentParser(add_help=False)
     config_parser.add_argument("--config", help="Path to an INI config file.")
@@ -30,6 +60,8 @@ def _load_config_defaults(argv: List[str]) -> tuple[dict[str, object], list[str]
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     argv_list = list(argv)
     config_values, config_unknown, config_path = _load_config_defaults(argv_list)
+    crawl_include_default = config_values.pop("crawl_include", None)
+    crawl_exclude_default = config_values.pop("crawl_exclude", None)
     parser = argparse.ArgumentParser(description="Run a technical SEO audit for a URL.")
     parser.add_argument("--version", action="version", version=f"seo-agent {__version__}")
     parser.add_argument("--config", default=config_path, help="Path to an INI config file with defaults.")
@@ -107,6 +139,16 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         help="Seed crawl from sitemap URLs (respects --crawl-limit).",
     )
     parser.add_argument(
+        "--crawl-include",
+        action="append",
+        help="Glob pattern(s) to include in crawl sampling (repeatable or comma-separated).",
+    )
+    parser.add_argument(
+        "--crawl-exclude",
+        action="append",
+        help="Glob pattern(s) to exclude from crawl sampling (repeatable or comma-separated).",
+    )
+    parser.add_argument(
         "--check-links",
         action="store_true",
         help="Enable bounded internal link checking via HEAD requests (may increase audit time).",
@@ -140,6 +182,8 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     if config_values:
         parser.set_defaults(**config_values)
     args = parser.parse_args(argv_list)
+    args.crawl_include = _finalize_patterns(args.crawl_include, crawl_include_default, argv_list, "--crawl-include")
+    args.crawl_exclude = _finalize_patterns(args.crawl_exclude, crawl_exclude_default, argv_list, "--crawl-exclude")
     setattr(args, "config_unknown", config_unknown)
     return args
 
@@ -213,6 +257,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         include_sitemaps=args.crawl_sitemaps,
         crawl_max_seconds=args.crawl_max_seconds,
         page_metrics=page_metrics,
+        crawl_include=args.crawl_include,
+        crawl_exclude=args.crawl_exclude,
     )
 
     output = report

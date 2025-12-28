@@ -4,7 +4,6 @@ This project aims to be the fastest, dependency-free technical SEO audit CLI for
 
 ## Near-term
 
-- Configuration file support for repeatable audits
 - Additional crawl insights (template-level issues, duplicate metadata clusters)
 - More output targets (GitHub summary format)
 - Improved report theming for Markdown output

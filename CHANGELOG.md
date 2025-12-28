@@ -13,6 +13,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - INI config file support via `--config`.
 - Discoverability checklist documentation.
 - SARIF output format for code scanning workflows.
+- Crawl include/exclude patterns to scope sampling.
 
 ### Changed
 - README expanded with install guidance, docs links, and workflows.
