@@ -2,10 +2,26 @@
 
 [![CI](https://github.com/ShubhenduVaid/seo-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ShubhenduVaid/seo-agent/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-%3E%3D70%25-brightgreen)](#)
+[![License](https://img.shields.io/github/license/ShubhenduVaid/seo-agent)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](#)
 
-Lightweight CLI that runs a technical SEO audit for a URL and outputs prioritized, actionable recommendations similar to what you would get from a senior technical SEO specialist. The tool relies only on the Python standard library-no external dependencies required.
+Dependency-free technical SEO audit CLI for quick, actionable site reviews. Built for developers, SEO engineers, and teams who want fast, deterministic audits that work locally or in CI.
+
+## Why SEO Audit Agent
+
+- Dependency-free runtime (stdlib only) with fast setup
+- Actionable recommendations prioritized by impact, effort, and confidence
+- Optional crawl sampling and link checks to catch template-level issues
+- CI-friendly JSON/Markdown output, baseline diffs, and quiet mode
+- Offline enrichers for PageSpeed and Search Console exports
 
 ## Quick start
+
+```bash
+seo-agent https://example.com --goal "traffic growth"
+```
+
+If running from source:
 
 ```bash
 python3 -m seo_agent https://example.com --goal "traffic growth"
@@ -21,6 +37,18 @@ python3 -m seo_agent https://example.com --goal "traffic growth"
 
 ## Installation
 
+### PyPI (recommended)
+
+```bash
+pipx install seo-agent
+# or
+pip install seo-agent
+```
+
+If the package is not published yet, install from source:
+
+### From source
+
 ```bash
 git clone https://github.com/ShubhenduVaid/seo-agent.git
 cd seo-agent
@@ -33,19 +61,21 @@ python3 -m pip install -e .
 ## Usage
 
 ```bash
-python3 -m seo_agent <url> [--goal "primary objective"] [--insecure]
+seo-agent <url> [--goal "primary objective"] [--insecure]
 ```
 
 Examples:
 
-- `python3 -m seo_agent https://example.com --goal "traffic growth"`
-- `python3 -m seo_agent https://example.com --insecure`
-- `python3 -m seo_agent https://example.com --format json --quiet` (machine-readable output)
-- `python3 -m seo_agent https://example.com --fail-on-critical` (exit non-zero if critical issues found; good for CI)
-- `python3 -m seo_agent https://example.com --crawl-depth 1 --crawl-limit 5` (sample a handful of internal pages)
-- `python3 -m seo_agent https://example.com --crawl-sitemaps --crawl-limit 8` (seed crawl from sitemaps)
-- `python3 -m seo_agent https://example.com --crawl-depth 1 --crawl-delay 0.5` (polite crawl with delay; honors robots.txt crawl-delay)
-- `python3 -m seo_agent https://example.com --report /tmp/report.txt` (also write the report to a file)
+- `seo-agent https://example.com --goal "traffic growth"`
+- `seo-agent https://example.com --insecure`
+- `seo-agent https://example.com --format json --quiet` (machine-readable output)
+- `seo-agent https://example.com --fail-on-critical` (exit non-zero if critical issues found; good for CI)
+- `seo-agent https://example.com --crawl-depth 1 --crawl-limit 5` (sample a handful of internal pages)
+- `seo-agent https://example.com --crawl-sitemaps --crawl-limit 8` (seed crawl from sitemaps)
+- `seo-agent https://example.com --crawl-depth 1 --crawl-delay 0.5` (polite crawl with delay; honors robots.txt crawl-delay)
+- `seo-agent https://example.com --report /tmp/report.txt` (also write the report to a file)
+- `seo-agent --list-checks` (show available checks)
+- `seo-agent --version`
 
 For backward compatibility you can also run `python3 seo_agent.py ...` from the project root.
 
@@ -93,12 +123,44 @@ URL audited: https://example.com
   Validate: View source to confirm the title; check Search Console HTML improvements for duplicates.
 ```
 
+## Output formats
+
+- Default `text`
+- `--format json` for structured output (good for CI)
+- `--format markdown` for docs/issue comments
+- `--report <path>` to write the rendered output to a file
+- `--quiet` skips interactive prompts (useful in CI)
+- `--fail-on-critical` exits non-zero if critical issues are found (useful for CI gates)
+
+## Baselines and comparisons
+
+- `--save-baseline <path>` saves a JSON snapshot of issues
+- `--compare <path>` compares current issues to a previous baseline
+- Useful for tracking improvements across releases and migrations
+
+## Integrations (offline)
+
+- `--psi-json <path>`: include PageSpeed/Lighthouse metrics from a local JSON export
+- `--gsc-pages-csv <path>`: weight priorities using Search Console Pages export data
+
+See `docs/INTEGRATIONS.md` for instructions on generating these files.
+
+## Documentation
+
+- `docs/CLI_REFERENCE.md` - full CLI reference and examples
+- `docs/ARCHITECTURE.md` - current architecture and data flow
+- `docs/OUTPUT_SCHEMA.md` - JSON output schema for `--format json`
+- `docs/INTEGRATIONS.md` - PageSpeed and Search Console offline enrichers
+- `docs/TROUBLESHOOTING.md` - common issues and fixes
+- `docs/ROADMAP.md` - project direction and future features
+- `CHANGELOG.md` - release notes
+
 ## Development
 
 Run the CLI locally while iterating:
 
 ```bash
-python3 -m seo_agent https://example.com --goal "traffic growth"
+seo-agent https://example.com --goal "traffic growth"
 ```
 
 Run tests:
@@ -115,17 +177,6 @@ python3 -m ruff check .
 python3 -m mypy seo_agent
 ```
 
-### Output formats
-
-- Default `text`
-- `--format json` for structured output (good for CI)
-- `--format markdown` for docs/issue comments
-- `--report <path>` to write the rendered output to a file
-- `--quiet` skips interactive prompts (useful in CI)
-- `--fail-on-critical` exits non-zero if critical issues are found (useful for CI gates)
-
-The project intentionally has no external dependencies. If you add new functionality, prefer the standard library when possible and include coverage (unit or integration tests) for new logic.
-
 Project layout (key modules):
 - `seo_agent/cli.py` - CLI argument parsing and entry point
 - `seo_agent/audit.py` - audit orchestration + crawl sampling
@@ -138,11 +189,6 @@ Project layout (key modules):
 - `seo_agent/reporting.py` - report rendering and formatting
 - `tests/` - unit tests for core utilities and checks
 
-## Documentation
-
-- `docs/ARCHITECTURE.md` - current architecture and data flow
-- `docs/OUTPUT_SCHEMA.md` - JSON output schema for `--format json`
-
 ## Packaging and release
 
 Build a wheel/sdist locally (requires `build` if not already installed):
@@ -152,7 +198,7 @@ python3 -m pip install --upgrade build
 python3 -m build
 ```
 
-This produces artifacts under `dist/`. Upload to PyPI with `twine` or your preferred publisher. Update the version in `seo_agent/__init__.py` and `pyproject.toml` before tagging a release.
+This produces artifacts under `dist/`. Update the version in `seo_agent/__init__.py` and `pyproject.toml`, and add notes to `CHANGELOG.md` before tagging a release.
 
 GitHub Actions CI:
 - Pull requests and main branch: installs in editable mode and runs lint (ruff), mypy, and `python -m unittest discover -v` with coverage >= 70%.

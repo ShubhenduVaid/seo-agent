@@ -26,13 +26,27 @@ classifiers = [
     "Topic :: Security",
     "Topic :: Utilities",
 ]
-keywords = ["seo", "audit", "cli", "web"]
+keywords = [
+    "seo",
+    "technical seo",
+    "seo audit",
+    "site audit",
+    "website audit",
+    "crawl",
+    "crawler",
+    "search console",
+    "pagespeed",
+    "cli",
+    "python",
+]
 dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/ShubhenduVaid/seo-agent"
 Source = "https://github.com/ShubhenduVaid/seo-agent"
 Issues = "https://github.com/ShubhenduVaid/seo-agent/issues"
+Documentation = "https://github.com/ShubhenduVaid/seo-agent/tree/main/docs"
+Changelog = "https://github.com/ShubhenduVaid/seo-agent/blob/main/CHANGELOG.md"
 
 [project.scripts]
 seo-agent = "seo_agent.cli:main"

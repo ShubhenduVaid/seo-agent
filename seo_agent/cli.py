@@ -3,10 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from typing import Iterable
+from pathlib import Path
+from typing import Iterable, List
 
+from . import __version__
 from .audit import SeoAuditAgent
 from .baseline import build_baseline, diff_baselines, load_baseline, render_diff_markdown, render_diff_text, save_baseline
+from .checks.registry import describe_checks
 from .constants import DEFAULT_TIMEOUT, USER_AGENT
 from .integrations.pagespeed import load_pagespeed_metrics
 from .integrations.search_console import load_gsc_pages_csv
@@ -15,6 +18,7 @@ from .network import normalize_url
 
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a technical SEO audit for a URL.")
+    parser.add_argument("--version", action="version", version=f"seo-agent {__version__}")
     parser.add_argument("url", nargs="?", help="URL to audit (e.g., https://example.com)")
     parser.add_argument("--goal", help="Primary goal for the audit (traffic growth, technical cleanup, migration prep, etc.)")
     parser.add_argument(
@@ -37,6 +41,11 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         "--enable-plugins",
         action="store_true",
         help="Enable loading additional checks from installed entry points (group: seo_agent.checks).",
+    )
+    parser.add_argument(
+        "--list-checks",
+        action="store_true",
+        help="List available checks and exit.",
     )
     parser.add_argument(
         "--format",
@@ -117,8 +126,26 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     return parser.parse_args(list(argv))
 
 
+def render_check_list(descriptions: List[dict[str, object]], plugins_enabled: bool) -> str:
+    total = len(descriptions)
+    lines = [f"Available checks ({total}):"]
+    for item in descriptions:
+        name = item.get("name", "unknown")
+        include = "yes" if item.get("include_on_crawled_pages") else "no"
+        lines.append(f"- {name} (runs on crawled pages: {include})")
+    if plugins_enabled:
+        lines.append("Plugins: enabled")
+    else:
+        lines.append("Tip: use --enable-plugins to include installed plugin checks.")
+    return "\n".join(lines)
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
+    if args.list_checks:
+        descriptions = describe_checks(enable_plugins=args.enable_plugins)
+        print(render_check_list(descriptions, args.enable_plugins))
+        return 0
     url = args.url or input("Enter the URL to audit: ").strip()
     if not url:
         print("A URL is required.")
@@ -211,8 +238,10 @@ def main(argv: Iterable[str] | None = None) -> int:
     print(output)
     if args.report:
         try:
-            with open(args.report, "w", encoding="utf-8") as f:
-                f.write(output)
+            report_path = Path(args.report)
+            if report_path.parent and not report_path.parent.exists():
+                report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(output, encoding="utf-8")
         except OSError as exc:
             print(f"Could not write report to {args.report}: {exc}")
 

@@ -42,6 +42,16 @@ def build_checks(enable_plugins: bool = False) -> List[CheckSpec]:
     return checks
 
 
+def describe_checks(enable_plugins: bool = False) -> List[dict[str, object]]:
+    checks = build_checks(enable_plugins=enable_plugins)
+    descriptions: List[dict[str, object]] = []
+    for check in checks:
+        func = check.func
+        name = f"{func.__module__}.{func.__name__}"
+        descriptions.append({"name": name, "include_on_crawled_pages": check.include_on_crawled_pages})
+    return descriptions
+
+
 def _load_plugin_checks() -> List[CheckSpec]:
     try:
         from importlib.metadata import entry_points

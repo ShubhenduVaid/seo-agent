@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from seo_agent.checks.registry import DEFAULT_CHECKS, build_checks
+from seo_agent.checks.registry import DEFAULT_CHECKS, build_checks, describe_checks
 from seo_agent.checks.types import CheckSpec
 
 
@@ -35,6 +35,12 @@ class RegistryTests(unittest.TestCase):
         checks = build_checks(enable_plugins=False)
         self.assertEqual(len(checks), len(DEFAULT_CHECKS))
 
+    def test_describe_checks_includes_default(self) -> None:
+        descriptions = describe_checks(enable_plugins=False)
+        names = [item.get("name") for item in descriptions]
+        self.assertEqual(len(descriptions), len(DEFAULT_CHECKS))
+        self.assertTrue(any(isinstance(name, str) and name.endswith("check_status_and_headers") for name in names))
+
     def test_build_checks_loads_plugins_from_select(self) -> None:
         plugin_spec = CheckSpec(_noop_check)
         plugin_callable = _noop_check
@@ -59,4 +65,3 @@ class RegistryTests(unittest.TestCase):
         with patch("importlib.metadata.entry_points", return_value=eps):
             checks = build_checks(enable_plugins=True)
         self.assertTrue(any(isinstance(c, CheckSpec) and c.func is plugin_callable for c in checks))
-
