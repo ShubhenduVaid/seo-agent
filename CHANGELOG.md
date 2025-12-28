@@ -6,6 +6,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## Unreleased
 
+## 0.4.0 - 2025-12-28
+
 ### Added
 - CLI flags for `--version` and `--list-checks`.
 - Documentation pages for CLI reference, integrations, troubleshooting, and roadmap.

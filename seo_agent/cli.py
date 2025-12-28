@@ -47,6 +47,14 @@ def _finalize_patterns(
     return []
 
 
+def _normalize_list_default(value: object | None) -> List[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item).strip()]
+    return None
+
+
 def _load_config_defaults(argv: List[str]) -> tuple[dict[str, object], list[str], str | None]:
     config_parser = argparse.ArgumentParser(add_help=False)
     config_parser.add_argument("--config", help="Path to an INI config file.")
@@ -60,8 +68,8 @@ def _load_config_defaults(argv: List[str]) -> tuple[dict[str, object], list[str]
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     argv_list = list(argv)
     config_values, config_unknown, config_path = _load_config_defaults(argv_list)
-    crawl_include_default = config_values.pop("crawl_include", None)
-    crawl_exclude_default = config_values.pop("crawl_exclude", None)
+    crawl_include_default = _normalize_list_default(config_values.pop("crawl_include", None))
+    crawl_exclude_default = _normalize_list_default(config_values.pop("crawl_exclude", None))
     parser = argparse.ArgumentParser(description="Run a technical SEO audit for a URL.")
     parser.add_argument("--version", action="version", version=f"seo-agent {__version__}")
     parser.add_argument("--config", default=config_path, help="Path to an INI config file with defaults.")
