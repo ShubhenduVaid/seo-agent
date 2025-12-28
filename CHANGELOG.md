@@ -14,6 +14,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Discoverability checklist documentation.
 - SARIF output format for code scanning workflows.
 - Crawl include/exclude patterns to scope sampling.
+- GitHub Actions summary output format.
+- Official GitHub Action wrapper.
 
 ### Changed
 - README expanded with install guidance, docs links, and workflows.

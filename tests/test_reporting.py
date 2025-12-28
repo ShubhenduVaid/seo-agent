@@ -122,3 +122,15 @@ class ReportingTests(unittest.TestCase):
         self.assertIn("note", levels)
         rule_ids = {rule.get("id") for rule in tool.get("rules", [])}
         self.assertIn("content.title_missing", rule_ids)
+
+    def test_render_report_github_summary_includes_counts(self) -> None:
+        ctx = _context()
+        issues = [
+            _issue("status.5xx", "critical", "Server error", category="status"),
+            _issue("content.meta", "important", "Meta description missing", category="content"),
+        ]
+        summary = render_report(ctx, "goal", issues, fmt="github")
+        self.assertIn("# SEO Audit Summary", summary)
+        self.assertIn("| Critical | 1 |", summary)
+        self.assertIn("| Important | 1 |", summary)
+        self.assertIn("## Top actions", summary)

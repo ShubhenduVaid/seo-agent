@@ -79,6 +79,7 @@ Examples:
 - `seo-agent --version`
 - `seo-agent --config ./seo-agent.ini https://example.com` (use shared defaults from a config file)
 - `seo-agent https://example.com --format sarif --report ./reports/seo.sarif` (SARIF for code scanning)
+- `seo-agent https://example.com --format github` (GitHub Actions summary format)
 
 For backward compatibility you can also run `python3 seo_agent.py ...` from the project root.
 
@@ -134,6 +135,7 @@ URL audited: https://example.com
 - `--format json` for structured output (good for CI)
 - `--format markdown` for docs/issue comments
 - `--format sarif` for GitHub code scanning / SARIF-compatible tooling
+- `--format github` for GitHub Actions job summaries
 - `--report <path>` to write the rendered output to a file
 - `--quiet` skips interactive prompts (useful in CI)
 - `--fail-on-critical` exits non-zero if critical issues are found (useful for CI gates)
@@ -166,6 +168,22 @@ seo-agent --config ./seo-agent.ini
 
 CLI flags always override config values. Unknown keys in the config will be reported unless `--quiet` is set.
 
+## GitHub Action
+
+Use the official GitHub Action to run audits in CI and publish a job summary:
+
+```yaml
+- uses: ShubhenduVaid/seo-agent@v0
+  with:
+    url: https://example.com
+    goal: traffic growth
+    format: github
+    fail_on_critical: true
+    extra_args: --crawl-depth 1 --crawl-limit 5 --crawl-exclude "/search*"
+```
+
+See `docs/GITHUB_ACTION.md` for full usage.
+
 ## Baselines and comparisons
 
 - `--save-baseline <path>` saves a JSON snapshot of issues
@@ -188,6 +206,7 @@ See `docs/INTEGRATIONS.md` for instructions on generating these files.
 - `docs/TROUBLESHOOTING.md` - common issues and fixes
 - `docs/ROADMAP.md` - project direction and future features
 - `docs/DISCOVERABILITY.md` - GitHub visibility checklist
+- `docs/GITHUB_ACTION.md` - GitHub Action usage
 - `CHANGELOG.md` - release notes
 
 ## Development

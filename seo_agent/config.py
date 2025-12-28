@@ -42,7 +42,7 @@ _LIST_KEYS = {
     "crawl_exclude",
 }
 
-_VALID_FORMATS = {"text", "json", "markdown", "sarif"}
+_VALID_FORMATS = {"text", "json", "markdown", "sarif", "github"}
 
 
 def load_config(path: str) -> Tuple[Dict[str, Any], List[str]]:

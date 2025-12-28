@@ -95,7 +95,7 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--format",
-        choices=["text", "json", "markdown", "sarif"],
+        choices=["text", "json", "markdown", "sarif", "github"],
         default="text",
         help="Output format. Defaults to text.",
     )

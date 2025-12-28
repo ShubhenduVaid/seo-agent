@@ -5,13 +5,13 @@ This project aims to be the fastest, dependency-free technical SEO audit CLI for
 ## Near-term
 
 - Additional crawl insights (template-level issues, duplicate metadata clusters)
-- More output targets (GitHub summary format)
+- More output targets (GitHub annotations or HTML)
 - Improved report theming for Markdown output
 
 ## Longer-term
 
 - Community check registry and example plugins
-- Official GitHub Action and Docker image
+- Docker image
 - Benchmark dataset and regression fixtures for checks
 
 Have an idea? Open an issue and share your workflow.
