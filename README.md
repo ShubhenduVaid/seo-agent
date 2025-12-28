@@ -173,7 +173,7 @@ CLI flags always override config values. Unknown keys in the config will be repo
 Use the official GitHub Action to run audits in CI and publish a job summary:
 
 ```yaml
-- uses: ShubhenduVaid/seo-agent@v0
+- uses: ShubhenduVaid/seo-agent@v0.4.0
   with:
     url: https://example.com
     goal: traffic growth

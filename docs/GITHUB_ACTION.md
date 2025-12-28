@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ShubhenduVaid/seo-agent@v0
+      - uses: ShubhenduVaid/seo-agent@v0.4.0
         with:
           url: https://example.com
           goal: traffic growth
@@ -25,6 +25,10 @@ jobs:
 ```
 
 The action writes the report output to the GitHub job summary when `write_summary` is `true` (default).
+
+Example workflow file is available at `.github/workflows/seo-audit.yml`.
+
+Pin to a release tag (e.g., `v0.4.0`) for reproducible runs.
 
 ## Inputs
 
@@ -47,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ShubhenduVaid/seo-agent@v0
+      - uses: ShubhenduVaid/seo-agent@v0.4.0
         with:
           url: https://example.com
           format: sarif
